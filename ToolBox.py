@@ -6,19 +6,15 @@ Created on Sat Sep 10 19:45:36 2022
 """
 
 import pandas as pd
-from urllib.request import urlopen
-import json
 import datetime
 import numpy as np
 import os
 import mat4py as m4p
 import re
-import scipy.stats
-from datetime import date
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 import numba as nb
 
 

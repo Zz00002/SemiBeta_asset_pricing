@@ -7,15 +7,11 @@ Created on Mon Jul 10 15:16:18 2023
 
 import numpy as np
 import pandas as pd
-import scipy
 import ToolBox as TB
 from matplotlib import pyplot as plt
 import re
-from AssetPricing_test import DataCleaner,AssetPricingTool
+from AssetPricing_test import AssetPricingTool
 from multiprocessing import Pool, cpu_count
-from mat4py import loadmat
-from AssetPricing_test import DataCombiner_CSMAR
-from scipy.io import savemat
 import numba as nb
 from Volatility_Study_Tool import Volatility_Tool
 import statsmodels.api as sm
@@ -138,19 +134,11 @@ def Cpt_IntraBeta_and_Measures(stkcd, hf_index, stock_base_data, kn, min_=5, n=4
     betas_df.to_csv(r'F:\SemiBeta\Intraday_betas\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
 
     betas2 = pow(betas_df,2).mean(axis=1).rename(stkcd)
-    # absBetas = abs(betas_df).mean(axis=1).rename(stkcd)
-    
     bq_100 = (betas_df.max(axis=1) - betas_df.min(axis=1)).rename(stkcd)
-    # bq_90 = (betas_df.quantile(0.9, axis=1) - betas_df.quantile(0.1, axis=1)).rename(stkcd)
-    # bq_75 = (betas_df.quantile(0.75, axis=1) - betas_df.quantile(0.25, axis=1)).rename(stkcd)
     autocorr_1 = betas_df.T.apply(lambda x: x.autocorr(lag=1)).rename(stkcd)
 
     betas2.to_csv(r'F:\SemiBeta\Other_measure\Square\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
-    # absBetas.to_csv(r'F:\SemiBeta\Other_measure\ABS\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
-    
     bq_100.to_csv(r'F:\SemiBeta\Other_measure\BQ100\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
-    # bq_90.to_csv(r'F:\SemiBeta\Other_measure\BQ90\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
-    # bq_75.to_csv(r'F:\SemiBeta\Other_measure\BQ75\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
     autocorr_1.to_csv(r'F:\SemiBeta\Other_measure\AutoCorr\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
     
     print('Betas finished:{}_{}_{}'.format(stkcd,kn,index_name))
@@ -160,23 +148,15 @@ def Cpt_IntraBeta_and_Measures(stkcd, hf_index, stock_base_data, kn, min_=5, n=4
 def Cpt_All_Stock_DS(index_lst, kn_lst, n=48, min_=5):
     
     # get high frequency stock data
-    # 000300,000905,000852
-    # hf_index_500 = TB.Fetch_Stock_HFdata_from_Resset('000905', asset_type='index', minType=min_) 
     hf_index_300 = TB.Fetch_Stock_HFdata_from_Resset(300, asset_type='index', minType=min_) 
-    # hf_index_1000 = TB.Fetch_Stock_HFdata_from_Resset('000852', asset_type='index', minType=min_) 
     hf_index_4000 = pd.read_csv(r'F:\HF_MIN\Resset\A_Index_{}.csv'.format(min_))
 
-    # hf_index_500 = hf_index_500[['stkcd','Trddt','time','open','close']]
-    # hf_index_500 = hf_index_500.rename(columns={'close':'index_close','open':'index_open'})
     hf_index_300 = hf_index_300[['stkcd','Trddt','time','open','close']]
     hf_index_300 = hf_index_300.rename(columns={'close':'index_close','open':'index_open'})
-    # hf_index_1000 = hf_index_1000[['stkcd','Trddt','time','open','close']]
-    # hf_index_1000 = hf_index_1000.rename(columns={'close':'index_close','open':'index_open'})
     hf_index_4000 = hf_index_4000.rename(columns={'close':'index_close','open':'index_open'})
     hf_index_4000['stkcd'] = 4000
 
     index_dict = {300:hf_index_300, 4000:hf_index_4000}
-    # index_dict = {300:hf_index_300, 500:hf_index_500, 1000:hf_index_1000, 4000:hf_index_4000}
     
     stock_base_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv',usecols=['Stkcd','Trddt'])
 
@@ -207,17 +187,6 @@ def Cpt_All_Stock_DS(index_lst, kn_lst, n=48, min_=5):
       
   
 def Mrg_Intraday_Beta(min_, index_type, est_intervel):
-    '''
-    beta_dispersion_dir = r'F:\Intrady Beta Pattern\DD_5\{0}\{1}'.format(index_type,est_intervel)            
-    file_list = TB.Tag_FilePath_FromDir(beta_dispersion_dir)
-    
-    for stock in file_list:
-        stkcd = stock.split('\\')[-1].split('.')[0]
-        DD_df = pd.read_csv(stock, index_col=0)
-        DS_df = pd.read_csv(r'F:\Intrady Beta Pattern\DS_5\{0}\{1}\{2}.csv'.format(index_type,est_intervel,stkcd), index_col=0)
-        BS_df = DS_df - DD_df
-        BS_df.to_csv(r'F:\Intrady Beta Pattern\BS_5\{0}\{1}\{2}.csv'.format(index_type,est_intervel,stkcd))
-    '''
     
     
     print('Begin merging intraday data: {}_{}_{}'.format(min_,index_type,est_intervel))
@@ -817,24 +786,17 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     
     # ABS_df = pd.read_csv(r'F:\SemiBeta\Other_measure\ABS_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     Square_df = pd.read_csv(r'F:\SemiBeta\Other_measure\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-
     SemiBeta = pd.read_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_5.csv'.format(index_dict[index_type]))    
     AC_df = pd.read_csv(r'F:\SemiBeta\Other_measure\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    # BQ75_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ75_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    # BQ90_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ90_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     BQ100_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     
-    # DS_exec_df = pd.merge(DS_exec_df, ABS_df)
     DS_exec_df = pd.merge(DS_exec_df, Square_df)
     DS_exec_df = pd.merge(DS_exec_df, AC_df)
-    # DS_exec_df = pd.merge(DS_exec_df, BQ75_df)
-    # DS_exec_df = pd.merge(DS_exec_df, BQ90_df)
     DS_exec_df = pd.merge(DS_exec_df, BQ100_df)
     DS_exec_df = pd.merge(DS_exec_df, SemiBeta)
     
     DS_exec_df['Trddt'] = pd.to_datetime(DS_exec_df['Trddt'])
     DS_exec_df = pd.merge(stock_base_df, DS_exec_df, right_on=['Trddt','Stkcd'], left_on=['Trddt','Stkcd'])
-    # DS_exec_df = stock_base_df
     DS_exec_df = DS_exec_df[['Stkcd', 'Trddt', 'ex_ret', 'Dretwd',
                               'rf', 'mkt', 'vmg', 'smb',
                               'Beta_abs_intra','BQ100','AutoCorr','Square',
@@ -855,11 +817,8 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     
     DS_fin_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)]).mean().drop(['Dretwd','ex_ret'],axis=1)
     REV_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd','ex_ret']].sum().rename(columns={'Dretwd': 'REV'})
-    # DS_exec_df.groupby('Stkcd').resample(freq).mean().rename(columns={'Dretwd':'REV'})
     MAX_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd']].max().rename(columns={'Dretwd': 'MAX'})
     MIN_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd']].min().rename(columns={'Dretwd': 'MIN'})
-    # MAX_df = DS_exec_df.groupby('Stkcd')[['Dretwd']].resample(freq).max().rename(columns={'Dretwd':'MAX'})
-    # MIN_df = DS_exec_df.groupby('Stkcd')[['Dretwd']].resample(freq).min().rename(columns={'Dretwd':'MIN'})
     DS_fin_df = pd.concat([DS_fin_df, MAX_df, MIN_df,REV_df], axis=1)  
     DS_fin_df = DS_fin_df.dropna()
 
@@ -1070,90 +1029,6 @@ def Mrg_Dsort_res_(freq, min_, control_list, est_lst, index_type, key_tag, weigh
                          .format(freq, min_, index_type, est_intervel, weight_type, key_tag,reverse))
 
 
-# def Muti_Mrg_Dsort_res(weight_lst, min_, D_type_lst, freq_lst, index_lst, est_lst,reverse=False):
-        
-#     skip_dir1 = r'F:\Intrady Beta Pattern\Sort_res\Dsort_used'
-#     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
-#     control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','beta', 'beta_n', 'beta_mn', 'conBeta', 'disconBeta', 'rvn', 'rv', 'RSJ']
-
-#     num_processes = 4
-#     # Create a Pool of processes
-#     with Pool(num_processes) as pool:
-#         for weight_type in weight_lst:
-#             for D_type in D_type_lst: # 'TDD','TD_cos','TD_sin',
-#                 for freq in freq_lst:
-#                     for index_type in index_lst:
-#                         # for est_intervel in est_lst:
-#                         # file_name = skip_dir1 + '\\Merge_Dsort_{}_{}_{}_{}_{}_{}.csv'.format(freq, D_type, min_, index_type, est_intervel, weight_type)
-#                         file_name = skip_dir1 + '\\Merge_Dsort_{}_{}_{}_{}_{}_reverse.csv'.format(freq, D_type, min_, index_type, weight_type,)
-    
-#                         if file_name not in skip_list:
-#                         # pool.apply_async(Get_SSort_res, (D_type,index_type,est_intervel,stock_mon_trade_data,SVIC_Month,))
-#                             # pool.apply_async(Mrg_Dsort_res_, (freq, D_type, min_, control_list, index_type, est_intervel,
-#                             #                                  weight_type,))
-#                             pool.apply_async(Mrg_Dsort_res_, (freq, D_type, min_, control_list, index_type, est_lst, weight_type, reverse, ))
-    
-
-#         # Close the pool and wait for all processes to finish
-#         pool.close()
-#         pool.join()
-        
-        
-              
-
-# def Merge_Ssort_res(freq, D_type, min_, index_type, est_lst):
-    
-#     res_dir = r'F:\Intrady Beta Pattern\Sort_res\Ssort'
-    
-#     Ssort_df = pd.DataFrame()
-#     for est in est_lst:
-#         df_weight = pd.DataFrame()
-#         for weight in ['vw', 'ew']:
-#             df = pd.read_csv(res_dir+'\\Ssort_{}_{}_{}_{}_{}_{}.csv'.format(freq, D_type, min_, index_type, est, weight))
-#             df = TB.Ist_TopRow_into_df(df, weight)
-#             if weight == 'ew':
-#                 df = df.drop('Group', axis=1)
-#                 df.insert(0,'est_type',' ')
-                
-#             df_weight = pd.concat([df_weight, df], axis=1)
-#             df_weight.loc[0,'Group'] = ''
-#             # df_weight.loc[0,'est_type'] = est
-#         df_weight = TB.Ist_TopRow_into_df(df_weight)
-#         df_weight.loc[0,'est_type'] = est
-#         df_weight = df_weight.set_index('Group')
-
-#         Ssort_df = pd.concat([Ssort_df, df_weight])
-#     Ssort_df.to_csv(r'F:\Intrady Beta Pattern\Sort_res\Ssort_used\Merge_Ssort_{}_{}_{}_{}.csv'.format(freq, D_type, min_, index_type))
-#     print('finished: Merge_Ssort_{}_{}_{}_{}.csv'.format(freq, D_type, min_, index_type))
-
-
-# def Mult_Merge_Ssort_res(freq_lst, D_type_lst, min_, index_lst, est_lst):
-    
-#     skip_dir1 = r'F:\Intrady Beta Pattern\Sort_res\Ssort_used'
-#     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
-
-#     num_processes = 4
-#     # Create a Pool of processes
-#     with Pool(num_processes) as pool:
-#         for D_type in D_type_lst: # 'TDD','TD_cos','TD_sin',
-#             for freq in freq_lst:
-#                 for index_type in index_lst:
-#                     file_name = skip_dir1 + '\\Merge_Ssort_{}_{}_{}_{}.csv'.format(freq, D_type, min_, index_type)
-#                     if file_name not in skip_list:
-#                     # pool.apply_async(Get_SSort_res, (D_type,index_type,est_intervel,stock_mon_trade_data,SVIC_Month,))
-#                         pool.apply_async(Merge_Ssort_res, (freq, D_type, min_, index_type, est_lst,))
-
-#         # Close the pool and wait for all processes to finish
-#         pool.close()
-#         pool.join()
-     
-
-
-
-###############################################################################
-###############################################################################    
-
-
 
 def Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index_type, min_=5, est_intervel=25, freq='W'):
     
@@ -1228,17 +1103,6 @@ def Muti_exec_FMR(min_, freq_lst, est_lst, index_lst=[300,4000], mult=True):
                 pool.close()
                 pool.join()
             
-            
-    # else:
-    #     for D_type in D_type_lst:
-    #         for freq in freq_lst:
-    #             for est_intervel in est_lst:
-    #                 file_name = skip_dir1 + '\\FMR_{0}_{1}_{2}_{3}_{4}.csv'.format(freq, D_type, min_, index, est_intervel)
-    #                 if file_name not in skip_list:
-    #                     DS_exec_df = Crt_TD_SortTable(D_type, min_, index, est_intervel, stock_base_df, freq) 
-    #                     Exec_FamaMacbeth_Reg(DS_exec_df,  D_type, min_, index, est_intervel, freq)
-
-    
 
 
 
@@ -1374,260 +1238,15 @@ def Muti_Bet_on_BetaDispersion(weight_type, min_, D_type_lst, freq_lst, index, e
                         # pool.apply_async(Get_SSort_res, (D_type,index_type,est_intervel,stock_mon_trade_data,SVIC_Month,))
                             Bet_on_BetaDispersion(D_type, min_, index, est_intervel, stock_base_df, freq, index_enhancement, rho)
  
-
-
-def Crt_Descriptive_Data(SSort_exec_df, k, index, est_intervel, min_=5, freq='W'):
-    
-    TS_df = SSort_exec_df.groupby('Stkcd')['Beta_abs_intra', 'BQ100',
-                                       'AutoCorr', 'Square', 
-                                       'beta', 'BM', 'ME', 'MOM', 'ILLIQ', 'IVOL', 'CSK', 'CKT', 'RSJ',
-                                       'disconBeta', 'Beta_neg', 
-                                       'MAX', 'MIN', 'REV'].mean()
-        
-    # Replace with your actual column names
-    key_factors = ['Beta_abs_intra', 'Square', 'BQ100', 'AutoCorr']
-    
-    # Set the style for the plots (optional)
-    sns.set(style="whitegrid")
-        
-    # # Loop through the key factors and create KDE plots on the same graph
-    # for factor in key_factors:
-    #     sns.kdeplot(data=TS_df[factor], label=f'{factor} KDE', shade=True)
-    
-    # plt.title('KDE Plots of Key Factors')
-    # plt.xlabel('Value')
-    # plt.ylabel('Density')
-    # plt.legend()  # Add a legend to differentiate the plots by factor
-    # plt.show()
-    # plt.savefig(r'D:\个人项目\Latex file\article\Intraday Market Beta Pattern\Factor Construction\Factor_semibeta\pic\KDE Plots of Key Factors.png')
-
-    fig, axes = plt.subplots(2, 2, figsize=(18, 12),dpi=100)  # Adjust the figure size as needed
-    fig.suptitle('KDE Plots with Normal Distribution Overlays', fontsize=16)
-    
-    # Flatten the axes array for easier iteration
-    axes = axes.flatten()
-    
-    # Loop through the key factors and create KDE plots in the subplots
-    for i, factor in enumerate(key_factors):
-        sns.kdeplot(data=TS_df[factor], label=f'{factor} KDE', ax=axes[i], shade=True)
-        
-        mu, std = TS_df[factor].mean(), TS_df[factor].std()
-        xmin, xmax = plt.xlim()
-        x = np.linspace(TS_df[factor].min(), TS_df[factor].max(), 70)
-        p = norm.pdf(x, mu, std)
-        axes[i].plot(x, p, 'k', linewidth=2, label=f'{factor} Normal')
-    
-        axes[i].set_title(f'KDE Plot - {factor}')
-        axes[i].set_xlabel('Value')
-        axes[i].set_ylabel('Density')
-        axes[i].legend()
-    
-    # Remove any empty subplots (if there are fewer than 6 factors)
-    for i in range(len(key_factors), len(axes)):
-        fig.delaxes(axes[i])
-    
-    # Adjust spacing between subplots
-    plt.tight_layout()
-    
-    # Show the plots
-    plt.savefig(r'F:\SemiBeta\Descriptive_Stast\KDE Plots with Normal Distribution Overlays_{}_{}_{}.png'.format(index, est_intervel, k))
-
-
-    # descriptive statstic
-    TS_df['ILLIQ'] = TS_df['ILLIQ']*1000000
-    p1 = TS_df.describe().loc[['mean','std','50%'],:].astype(float).round(4)
-    p1.loc[''] = ''
-    p2 = SSort_exec_df.groupby('Trddt')['Beta_abs_intra', 'BQ100',
-                                       'AutoCorr', 'Square', 
-                                       'beta', 'BM', 'ME', 'MOM', 'ILLIQ', 'IVOL', 'CSK', 'CKT', 'RSJ',
-                                       'disconBeta', 'Beta_neg', 
-                                       'MAX', 'MIN', 'REV'].corr().reset_index().groupby('level_1').mean()
-    p2 = p2.astype(float).round(4)
-    p2 = p2.reindex(['Beta_abs_intra', 'BQ100',
-                    'AutoCorr', 'Square', 
-                    'beta', 'BM', 'ME', 'MOM', 'ILLIQ', 'IVOL', 'CSK', 'CKT', 'RSJ',
-                    'disconBeta', 'Beta_neg', 
-                    'MAX', 'MIN', 'REV'])
-    
-    mask = np.triu(np.ones(p2.shape), k=0)
-    p2 = p2.where(mask == 1)
-    des = pd.concat([p1,p2])
-    des.to_csv(r'F:\SemiBeta\Descriptive_Stast\descriptive data_{}_{}_{}.csv'.format(index, est_intervel, k))
-    
-    
-    # # time series plot of different beta
-    
-    # # Loop through the key factors and create KDE plots in the subplots
-    # for i, factor in enumerate(key_factors):
-    #     fig = plt.figure(figsize=(18, 12),dpi=100)  # Adjust the figure size as needed
-    #     plt.title('Time series graph of {}'.format(factor), fontsize=16)
-        
-    #     Ssort_res = APT.Exec_SingleSort(avgTag='retShit', sortTag=factor, groupsNum=5,
-    #                                     timeTag='Trddt',df=DS_exec_df)[1]
-    #     ts_fac = Ssort_res.groupby(['Group','Trddt'])[factor].mean().reset_index()
-        
-    #     for group,df in ts_fac.groupby('Group'):
-    #         plt.plot(df.Trddt,df[factor])
-        
-        
-
-        
-    #     sns.kdeplot(data=Cross_mean_df[factor], label=f'{factor} KDE', ax=axes[i], shade=True)
-        
-    #     mu, std = Cross_mean_df[factor].mean(), Cross_mean_df[factor].std()
-    #     xmin, xmax = plt.xlim()
-    #     x = np.linspace(Cross_mean_df[factor].min(), Cross_mean_df[factor].max(), 100)
-    #     p = norm.pdf(x, mu, std)
-    #     axes[i].plot(x, p, 'k', linewidth=2, label=f'{factor} Normal')
-    
-    #     axes[i].set_title(f'KDE Plot - {factor}')
-    #     axes[i].set_xlabel('Value')
-    #     axes[i].set_ylabel('Density')
-    #     axes[i].legend()
-    
-    # # Remove any empty subplots (if there are fewer than 6 factors)
-    # for i in range(len(key_factors), len(axes)):
-    #     fig.delaxes(axes[i])
-    
-    # # Adjust spacing between subplots
-    # plt.tight_layout()
-    
-    # # Show the plots
-    # plt.show()
-    # plt.savefig(r'F:\Intrady Beta Pattern\Descriptive Statistic\KDE Plots with Normal Distribution Overlays.png')
-    
-    
-    
-def Crt_All_PricingResults():
-    
-    stock_base_df = Crt_Stock_base_df()
-    
-    freq='W'
-    index_lst = [300,4000]
-    k_lst = [5]
-    D_type = 'Betasabs'
-    min_ = 5
-    est_intervel = 25
-    
-    hf_index_300 = TB.Fetch_Stock_HFdata_from_Resset(300, asset_type='index', minType=5).rename(columns={'close':'close_300'})
-    hf_index_szzz = TB.Fetch_Stock_HFdata_from_Resset(1, asset_type='index', minType=5).rename(columns={'close':'close_szzz'})
-    hf_index_szcz = TB.Fetch_Stock_HFdata_from_Resset(399001, asset_type='index', minType=5).rename(columns={'close':'close_szcz'})
-    hf_index_4000 = pd.read_csv(r'F:\HF_MIN\Resset\A_Index_5.csv').rename(columns={'close':'close_A'})
-        
-    hf_index_all = pd.merge(hf_index_300[['Trddt','time','close_300']], hf_index_szzz[['Trddt','time','close_szzz']])
-    hf_index_all = pd.merge(hf_index_all, hf_index_szcz[['Trddt','time','close_szcz']])
-    hf_index_all = pd.merge(hf_index_all, hf_index_4000[['Trddt','time','close_A']])
-    
-    ', '#fc8d62', '#8da0cb', '#e78ac3'
-    
-    plt.figure(figsize=(18, 12),dpi=100)
-    plt.plot(hf_index_all.index,hf_index_all[['close_300']], label='300',color='#66c2a5')
-    plt.plot(hf_index_all.index,hf_index_all[['close_szzz',]], label='SSI',color='#fc8d62')
-    plt.plot(hf_index_all.index,hf_index_all[['close_szcz']], label='SZI',color='#8da0cb')
-    plt.plot(hf_index_all.index,hf_index_all[['close_A']], label='A_ttl',color='#e78ac3')
-    plt.legend()
-    x_lst = list(range(0,len(hf_index_all.index),5000))
-    plt.xticks(x_lst,hf_index_all.Trddt[x_lst],rotation=45)
-    plt.grid()
-    plt.title('5-minute time series of closing prices for different market indices', fontsize=16)
-    plt.xlabel('Trading Date')
-    plt.ylabel('close price')
-    
-    # hf_index_all.corr().to_csv(r'D:\个人项目\Latex file\article\Intraday Market Beta Pattern\Factor Construction\Factor_semibeta\table\index_corr.csv')
-
-
-    
-    for index in index_lst:
-        for k in k_lst:
-            SSort_exec_df = Crt_SortTable(stock_base_df, min_, k, index, est_intervel, freq=freq) 
-            Crt_Descriptive_Data(SSort_exec_df, k, index, est_intervel, min_=min_, freq=freq)
-
-            for key_x_lst in [['Beta_abs_intra','semi_beta_vari'],
-                              ['Beta_abs_intra','abs_semi_beta_vari'],
-                              ['Beta_abs_intra','AutoCorr'],
-                              ['Beta_abs_intra','BQ100'],
-                              ['Beta_abs','semi_beta_vari'],
-                              ['Beta_abs','abs_semi_beta_vari'],
-                              ['Beta_abs','AutoCorr'],
-                              ['Beta_abs','BQ100']]:
-                
-                Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index, k=k, min_=min_, est_intervel=est_intervel, freq=freq)
-            
-            # for weight in ['vw','ew']:
-            #     for key in ['semi_beta_vari','abs_semi_beta_vari','Beta_abs','DS','bq100','AC1']:
-            #         Exec_TD_SSort(SSort_exec_df, min_, index, key, freq='W', weight_type=weight)
-                    
-            #         for con_tag in ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']:
-            #             for reverse in [False, True]:
-            #                 Exec_TD_Dsort(SSort_exec_df,
-            #                                 min_,
-            #                                 index, 
-            #                                 key,
-            #                                 con_tag,
-            #                                 freq='W',
-            #                                 weight_type=weight,
-            #                                 reverse=reverse)
-
-    
-    
-def process(index, k, D_type, min_, est_intervel, freq, stock_base_df):
-    SSort_exec_df = Crt_SortTable(D_type, stock_base_df, min_, k, index, est_intervel, freq=freq) 
-    print('finished SSort_exec_df_{}_{}'.format(index,k))
-    
-    # Crt_Descriptive_Data(SSort_exec_df, k, index, est_intervel, min_=min_, freq=freq)
-
-    print('finished Crt_Descriptive_Data_{}_{}'.format(index,k))
-
-    for key_x_lst in [['Beta_abs_intra','Square'],
-                      ['Beta_abs_intra','ABS'],
-                      ['Beta_abs_intra','AutoCorr'],
-                      ['Beta_abs_intra','BQ100']]:
-        
-        Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index, k=k, min_=min_, est_intervel=est_intervel, freq=freq)
-    print('finished Exec_FamaMacbeth_Reg_{}_{}'.format(index,k))
-
-    # for weight in ['vw','ew']:
-    #     for key in ['semi_beta_vari','abs_semi_beta_vari','Beta_abs','DS','bq100','AC1']:
-    #         Exec_TD_SSort(SSort_exec_df, min_, index, key, freq='W', weight_type=weight)
-            
-    #         print('finished Exec_TD_SSort_{}_{}_{}'.format(index,k,key))
-
-    #         for con_tag in ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']:
-    #             for reverse in [False, True]:
-    #                 Exec_TD_Dsort(SSort_exec_df,
-    #                                 min_,
-    #                                 index, 
-    #                                 key,
-    #                                 con_tag,
-    #                                 freq='W',
-    #                                 weight_type=weight,
-    #                                 reverse=reverse)
-                    
-    #             print('finished Exec_TD_Dsort_{}_{}_{}_{}'.format(index,k,key,con_tag))
-
-
-
-def Crt_All_PricingResults_parallel():
-    freq='W'
-    index_lst = [300,4000]
-    k_lst = [5]
-    D_type = 'Betasabs'
-    min_ = 5
-    est_intervel = 25
-
-    # Calculate stock_base_df outside the parallelized function
-    stock_base_df = Crt_Stock_base_df()
-
-    # Define the number of processes
-    num_processes = 3  # You can adjust this based on the number of cores your machine has
-
-    print('Start !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    with Pool(num_processes) as pool:
-        pool.starmap(process, [(index, k, D_type, min_, est_intervel, freq, stock_base_df) for index in index_lst for k in k_lst])
-
-    
     
 if __name__ == '__main__':
+    
+    # 1. 
+    Cpt_All_Stock_DS([4000], [25], n=48, min_=5)
+
+    
+    
+    
     
     # control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
     # for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
@@ -1683,213 +1302,6 @@ if __name__ == '__main__':
     # Mult_Mrg_SemiBeta([300], [1])
         
     
-    
-    # # plot the bear and bull period
-    # idx_df = idx_df.rename(columns={'Clsidx':'Idx_Price'})
-    # idx_df = idx_df[idx_df.Month<='2022-12']
-    # plt.figure(figsize=(20,15))
-    # plt.plot(idx_df.Month, idx_df.Idx_Price,label='Idx_Price')
-    # plt.xticks(range(0,len(idx_df.Month),12))
-        
-    # # bear_lst = []
-    # # bull_lst = []
-    # # split_point = [0,10,33,45,54,113,124,133,156,167,192,216]
-    # # for i in range(len(split_point)):
-        
-    # #     if i != len(split_point)-1:
-    # #         start_i, end_i = split_point[i], split_point[i+1]
-    # #         start_day = idx_df.loc[start_i,'Month']
-    # #         end_day = idx_df.loc[end_i,'Month']
-            
-    # #         if i/2 == int(i/2):
-    # #             bear_lst.append([start_day, end_day])
-    # #         else:
-    # #             bull_lst.append([start_day, end_day])
-    
-    # for j in [['2006-07', '2008-10'], ['2014-08', '2016-02']]:
-    #     beg,end = j
-    #     plt.axvspan(beg, end, facecolor='gray', alpha=0.4, label='Extreme market')
-    #     if j==['2006-07', '2008-10']:
-    #         plt.legend()
-        
-    # plt.title('Index close price and Extreme market environment',fontsize=16)
-    # plt.savefig(r'F:\Intrady Beta Pattern\Extreme risk\Market.png')
-
-    # test the extream downside risk
-    
-    # DS_exec_df = Crt_TD_SortTable(D_type, min_, index_type, est_intervel, stock_base_df, freq) 
-    
-    # Ssort_df_vw = pd.DataFrame()
-    # Ssort_df_ew = pd.DataFrame()
-
-    # Factors = DS_exec_df[['Trddt','mkt', 'vmg', 'smb']].set_index('Trddt').drop_duplicates()
-    # for sortTag in ['DS', 'beta', 'beta_n', 'beta_mn', 'conBeta', 'disconBeta']:
-    #     Ssort_res_vw = APT.Rec_SingleSortRes(avgTag='retShit', sortTag=sortTag, groupsNum=5,
-    #                                       Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
-    #                                       timeTag='Trddt', df=DS_exec_df.copy(), weightTag='ME')
-        
-    #     Ssort_res_ew = APT.Rec_SingleSortRes(avgTag='retShit', sortTag=sortTag, groupsNum=5,
-    #                                       Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
-    #                                       timeTag='Trddt', df=DS_exec_df.copy())
-
-        
-    #     Ssort_df_vw = pd.concat([Ssort_df_vw,Ssort_res_vw.reset_index()],axis=1)
-    #     Ssort_df_ew = pd.concat([Ssort_df_ew,Ssort_res_ew.reset_index()],axis=1)
-        
-    # Ssort_df_vw.to_csv(r'F:\Intrady Beta Pattern\Sort_res\Ssort_used\Ssort_vw.csv')
-    # Ssort_df_ew.to_csv(r'F:\Intrady Beta Pattern\Sort_res\Ssort_used\Ssort_ew.csv')
-        
-
-    # ext_down_lst = [['2007-10-01', '2008-10-01'], ['2015-05-01', '2016-02-01']]
-    # ext_down_df = Slt_Data_base_lst(DS_exec_df,ext_down_lst).sort_values(['Stkcd','Trddt']).reset_index(drop=True)
-    
-    # APT = AssetPricingTool()
-    # Ssort_res = APT.Rec_SingleSortRes(avgTag='retShit', sortTag='DS', groupsNum=5,
-    #                                   Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
-    #                                   timeTag='Trddt', df=ext_down_df.copy(), weightTag='ME')
-    
-    # yTag = 'retShit'    
-    # DS_exec_df = Crt_TD_SortTable(D_type, min_, index_type, est_intervel, stock_base_df, freq) 
-
-    # key_xTag_lst = ['DS', 'beta', 'beta_n', 'beta_mn', 'conBeta', 'disconBeta']
-    # con_xTag_lst = ['RSJ', 'rvn', 'rv', 'REV', 'ME', 'MOM', 'ILLIQ', 'IVOL', 'MAX', 'MIN']
-    
-    # reg_lst = []
-    # for con_xTag in con_xTag_lst:
-    #     reg_lst.append([yTag] + key_xTag_lst + [con_xTag])
-    # reg_lst.append([yTag] + key_xTag_lst + con_xTag_lst)
-
-
-    # # data_df = DS_exec_df.drop(['Stkcd','retShit'], axis=1).copy()
-    # data_df = ext_down_df[['Trddt']+key_xTag_lst+con_xTag_lst]
-    # data_df = data_df.groupby('Trddt').apply(lambda x:TB.z_score(x))
-    # # data_df.valeus = np.where(data_df.values>3.5, 3.5, data_df.values)
-    # # data_df.valeus = np.where(data_df.values<-3.5, -3.5, data_df.values)
-    
-    # data_df[['Stkcd','Trddt','retShit']] = ext_down_df[['Stkcd','Trddt','retShit']]
-    # data_df['Trddt'] = pd.to_datetime(data_df.Trddt)
-    # data_df = data_df.set_index(['Stkcd','Trddt'])
-    # data_df = data_df[[yTag] + key_xTag_lst + con_xTag_lst]
-
-    # regres = APT.FamaMacBeth_summary(data_df, reg_lst, key_xTag_lst + con_xTag_lst).astype(str)
-    
-    
-    # DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag='beta', sortTag_key='DS', groupsNum1=5, groupsNum2=5, 
-    #                                   SortMethod='dependent', Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
-    #                                   timeTag='Trddt', df=ext_down_df.copy(), weightTag='ME')
-    
-
-    # ext_lst = [['2006-07-01', '2008-11-01'], ['2014-08-01', '2016-03-01']]
-    # ext_df = Slt_Data_base_lst(SSort_exec_df,ext_lst).sort_values(['Stkcd','Trddt']).reset_index(drop=True)   
-    # de_ext_df = SSort_exec_df[~SSort_exec_df.Trddt.isin(ext_df.Trddt.unique())]
-    
-    
-    # APT = AssetPricingTool()
-    # Factors = ext_df[['Trddt','mkt', 'vmg', 'smb']].set_index('Trddt').drop_duplicates()
-    # Ssort_res = APT.Rec_SingleSortRes(avgTag='retShit', sortTag='DS', groupsNum=5,
-    #                                   Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
-    #                                   timeTag='Trddt', df=ext_df.copy(), weightTag='ME')
-    # Ssort_res.to_csv(r'F:\Intrady Beta Pattern\Extreme risk\Single_sort_extreme.csv')
-    
-    # Factors_ = de_ext_df[['Trddt','mkt', 'vmg', 'smb']].set_index('Trddt').drop_duplicates()
-    # Ssort_res_ = APT.Rec_SingleSortRes(avgTag='retShit', sortTag='DS', groupsNum=5,
-    #                                   Factors=Factors_, use_factors=['mkt', 'vmg', 'smb'],
-    #                                   timeTag='Trddt', df=de_ext_df.copy(), weightTag='ME')
-    # Ssort_res_.to_csv(r'F:\Intrady Beta Pattern\Extreme risk\Single_sort_normal.csv')
-
-    
-    # for sortTag in ['ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','beta', 'beta_n', 'beta_mn', 'conBeta', 'disconBeta', 'rvn', 'rv', 'RSJ']:
-    #     DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=sortTag, sortTag_key='DS', groupsNum1=5, groupsNum2=5, 
-    #                                       SortMethod='dependent', Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
-    #                                       timeTag='Trddt', df=ext_df.copy(), weightTag='ME')
-        
-    #     DSort_res.to_csv(r'F:\Intrady Beta Pattern\Extreme risk\Dsort_{}_{}_{}_{}_{}_{}_{}_ext.csv'.format(freq, D_type, min_, sortTag, index, 
-    #                                                                                            est_intervel, weight_type))
-        
-        
-    #     DSort_res_ = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=sortTag, sortTag_key='DS', groupsNum1=5, groupsNum2=5, 
-    #                                       SortMethod='dependent', Factors=Factors_, use_factors=['mkt', 'vmg', 'smb'],
-    #                                       timeTag='Trddt', df=de_ext_df.copy(), weightTag='ME')
-    #     DSort_res_.to_csv(r'F:\Intrady Beta Pattern\Extreme risk\Dsort_{}_{}_{}_{}_{}_{}_{}_nor.csv'.format(freq, D_type, min_, sortTag, index, 
-    #                                                                                            est_intervel, weight_type))
-    
-    # yTag = 'retShit'    
-    # DS_exec_df = Crt_TD_SortTable(D_type, min_, index_type, est_intervel, stock_base_df, freq) 
-
-    # key_xTag_lst = ['DS', 'beta', 'beta_n', 'beta_mn', 'conBeta', 'disconBeta']
-    # con_xTag_lst = ['RSJ', 'REV', 'BM','ME', 'MOM', 'ILLIQ', 'IVOL', 'MAX', 'MIN','CSK','CKT']
-    
-    # reg_lst = []
-    # for x in key_xTag_lst + con_xTag_lst:
-    #     reg_lst.append([yTag] + [x])
-    
-    # for key_xTag in key_xTag_lst:
-    #     reg_lst.append([yTag] + [key_xTag] + con_xTag_lst)
-        
-    # reg_lst.append([yTag] + key_xTag_lst)
-        
-    # for con_xTag in con_xTag_lst:
-    #     reg_lst.append([yTag] + key_xTag_lst + [con_xTag])
-    # reg_lst.append([yTag] + key_xTag_lst + con_xTag_lst)
-
-
-    # # data_df = DS_exec_df.drop(['Stkcd','retShit'], axis=1).copy()
-    # data_df = ext_df[['Trddt']+key_xTag_lst+con_xTag_lst]
-    # data_df = data_df.groupby('Trddt').apply(lambda x:TB.z_score(x))
-    
-    # data_df = data_df.apply(lambda x: np.select([x.values<x.quantile(0.005),x.values>x.quantile(0.995)], [x.quantile(0.005),x.quantile(0.995)], default=x))
-    # # trimmed_series = semibeta_df.beta[(semibeta_df.beta >= semibeta_df.beta.quantile(0.005)) & (semibeta_df.beta <= semibeta_df.beta.quantile(0.995))]
-
-    # # data_df.valeus = np.where(data_df.values>3.5, 3.5, data_df.values)
-    # # data_df.valeus = np.where(data_df.values<-3.5, -3.5, data_df.values)
-    
-    # data_df[['Stkcd','Trddt','retShit']] = ext_df[['Stkcd','Trddt','retShit']]
-    # data_df['Trddt'] = pd.to_datetime(data_df.Trddt)
-    # data_df = data_df.set_index(['Stkcd','Trddt'])
-    # data_df = data_df[[yTag] + key_xTag_lst + con_xTag_lst]
-
-    # regres = APT.FamaMacBeth_summary(data_df, reg_lst, key_xTag_lst + con_xTag_lst).astype(str)
-    # regres.to_csv(r'F:\Intrady Beta Pattern\Extreme risk\FM_reg_extreme.csv')
-    
-    # # data_df = DS_exec_df.drop(['Stkcd','retShit'], axis=1).copy()
-    # data_df_ = de_ext_df[['Trddt']+key_xTag_lst+con_xTag_lst]
-    # data_df_ = data_df_.groupby('Trddt').apply(lambda x:TB.z_score(x))
-    # data_df = data_df.apply(lambda x: np.select([x.values<x.quantile(0.005),x.values>x.quantile(0.995)], [x.quantile(0.005),x.quantile(0.995)], default=x))
-
-    # data_df_[['Stkcd','Trddt','retShit']] = de_ext_df[['Stkcd','Trddt','retShit']]
-    # data_df_['Trddt'] = pd.to_datetime(data_df_.Trddt)
-    # data_df_ = data_df_.set_index(['Stkcd','Trddt'])
-    # data_df_ = data_df_[[yTag] + key_xTag_lst + con_xTag_lst]
-
-    # regres_ = APT.FamaMacBeth_summary(data_df_, reg_lst, key_xTag_lst + con_xTag_lst).astype(str)
-    # # regres_.to_csv(r'F:\Intrady Beta Pattern\Extreme risk\FM_reg_normal.csv')
-
-###############################################################################
-###############################################################################
-
-
-# # Assuming your DataFrame is named 'df' with columns: 'stockname', 'tradingdate', and 'weight'
-
-# # Step 1: Find the set of unique trading dates
-# unique_trading_dates = stock_base_data['Trddt'].unique()
-
-# # Step 2: Group the DataFrame by stock name
-# grouped_by_stock = stock_base_data.groupby('Stkcd')
-
-# # Step 3: Count the number of unique trading dates for each stock group
-# stock_trading_date_counts = grouped_by_stock['Trddt'].nunique()
-
-# # Step 4: Filter the stocks that exist in all trading dates
-# stocks_exist_in_all_dates = stock_trading_date_counts[stock_trading_date_counts == len(unique_trading_dates)].index
-
-# # Now, you can use 'stocks_exist_in_all_dates' to select the desired stocks from the original DataFrame
-# filtered_df = stock_base_data[stock_base_data['Stkcd'].isin(stocks_exist_in_all_dates)]
-
-
-# Tt = pd.Series(stock_base_data.Trddt.unique(), name='Trddt')
-# Tt = Tt.sort_values().reset_index(drop=True).to_frame()
-# Tt['year'] = Tt.Trddt.str.extract('(\d{4})')
-# Tt.drop_duplicates('year',keep='last').reset_index()['index'] + 1
 
 
 ###############################################################################
@@ -1914,10 +1326,7 @@ if __name__ == '__main__':
     # Mult_mrg_TD()    
     # Muti_Exec_TD_Dsort('vw')
     
-    # Cpt_All_Stock_DS([300],[15,20],n=24, min_=10)
-    # Cpt_All_Stock_DS([300],[15,30,180,210],n=240, min_=1)
     # Cpt_All_Stock_DS([300],[20,25,30,35,40],n=48, min_=5)
-    # Cpt_All_Stock_DS([500],[15,20],n=24, min_=10)
 
     # Mult_Mrg_DD_res()
     # Mult_mrg_TD(n=48, min_=5)
