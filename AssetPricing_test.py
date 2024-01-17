@@ -5,18 +5,14 @@ Created on Tue Jan 17 14:29:16 2023
 @author: asus
 """
 
-# 资产定价基础模块
+# Asset Pricing Foundation Module
 
 import numpy as np
 import pandas as pd
 import scipy
-import ToolBox as TB
-from matplotlib import pyplot as plt
-import re
 import math
 import statsmodels.api as sm
 from linearmodels import FamaMacBeth
-
 
 class AssetPricingTool:
 
