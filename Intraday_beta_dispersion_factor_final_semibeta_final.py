@@ -27,13 +27,9 @@ from scipy.stats import norm
 ###############################################################################
 
 
+# Do data cleaning as well as creating the basic data of semi-beta variation estimation
 def Cpt_BV_and_LogClsDiff(stkcd, hf_index, stock_base_data=None, n=48, min_=5, asset_type='stock'):
-    """
-    hf_stock_data_dir = r'D:\个人项目\数据集合\学术研究_股票数据\5minHFprice'
-    file_list = TB.Tag_FilePath_FromDir(hf_stock_data_dir, suffix='mat')
-    file = file_list[0]
-    
-    """
+
     try:
         hf_data_df = TB.Fetch_Stock_HFdata_from_Resset(stkcd, asset_type=asset_type, minType=min_)
         hf_data_df = hf_data_df.rename(columns={'date':'Trddt'})  
@@ -271,41 +267,7 @@ def Mult_Mrg_Beta_measure(D_type_lst, index_lst, min__lst, est_intervel_lst):
         # Close the pool and wait for all processes to finish
         pool.close()
         pool.join()
-
-
-def Cpt_Intraday_betaX(file, min_, index, est_intervel):
-    
-    stkcd = file.split('\\')[-1].split('.')[0]
-    betas_df = pd.read_csv(file,index_col=0)    
-    betas2 = pow(betas_df,2).mean(axis=1).rename(stkcd)
-    absBetas = abs(betas_df).mean(axis=1).rename(stkcd)
-
-    betas2.to_csv(r'F:\SemiBeta\Other_measure\Square\{}\{}\{}\{}.csv'.format(min_,index,est_intervel,stkcd))
-    absBetas.to_csv(r'F:\SemiBeta\Other_measure\ABS\{}\{}\{}\{}.csv'.format(min_,index,est_intervel,stkcd))
-    
-    print('Betas finished:{}_{}_{}'.format(stkcd,est_intervel,index))
-
-
-def Mult_Cpt_Intraday_betaX(index_lst, min__lst, est_intervel_lst):
-    
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
-        for min_ in min__lst:
-            for index_type in index_lst:
-                # for est_intervel in list(range(20,45,5)): 
-                for est_intervel in est_intervel_lst: 
-                    D_Ba_path = r'F:\SemiBeta\Intraday_betas\{}\{}\{}'.format(min_, index_type, est_intervel)
-                    file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
-                    for file in file_list:
-                        pool.apply_async(Cpt_Intraday_betaX, (file, min_, index_type, est_intervel,))
-    
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
-
-
-
+        
 
 #### Continuse and discontinuse beta    
 def Exec_ConDisconBeta(stkcd, hf_index_, idxcd=300):
@@ -1264,126 +1226,10 @@ if __name__ == '__main__':
     for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
         for weight_type in ['ew']:
             Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
-        
-        
     
+    # 5. Mult generate fama-macbeth regression results    
+    Muti_exec_FMR(5, ['W'], [15,20,25,30,35,40], index_lst=[300,4000], mult=True)    
 
-    # folders_dict = {type_1:{type_:'' for type_ in ['True','False']} for type_1 in ['15','20','25','30']}
-    # TB.create_folders(r'F:\SemiBeta\Sorted_res\Ssort\ew\300', folders_dict)
-    
-    # folders_dict = {str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]}
-    # TB.create_folders(r'F:\SemiBeta\FMreg_res', folders_dict)
-
-    # Muti_exec_FMR(5, ['W'], [15,20,25,30,35,40], index_lst=[300,4000], mult=True)    
-
-    # Mult_Cpt_Intraday_betaX([300,4000], [5], [25])
-    
-    # Mult_Mrg_Beta_measure(['AutoCorr'], [4000],[5],[15,20,25,30,35,40])
-    
-    # Mult_Mrg_Intraday_Beta_res()
-    
-    # Cpt_All_Stock_DS([4000], [15,20,25,30,35,40], n=48, min_=5)
-    
-    # Crt_All_PricingResults_parallel()
-
-    # Mult_Merge_BQ_and_AutoCorr()
-    # Mult_Mrg_DD_res()
-    # Mult_mrg_TD(n=48, min_=5)
-    
-    # Muti_Exec_RSJ_RV()
-    
-    # while True:
-    #     Muti_Exec_TD_Dsort(['ew','vw'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], [4000], 
-    #                         ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta'], 
-    #                         [15,20,25,30,35,40],min_=5, freq='W', mult=True, reverse=False)
-    
-    # Muti_Exec_TD_Dsort(['ew'], ['semi_beta_vari','abs_semi_beta_vari','Beta_abs','DS','bq100','AC1'], [300,4000], 
-    #                     ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta'], 
-    #                     min_=5, freq='W', mult=True, reverse=True)
-    
-    # Muti_exec_Ssort(['vw','ew'], [300], ['semi_beta_vari','RSJ','beta','Beta_neg','disconBeta','Beta_abs','DS'], min_=5,freq='W',mult=False)
-    
-    # Mult_Cpt_IVOL()
-    
-    # Muti_Exec_SemiBeta()
-    
-    # Mult_Mrg_SemiBeta([300], [1])
-        
-    
-
-
-###############################################################################
-## intraday beta construction 
-###############################################################################
-
-
-# folders_dict = {str(year):{type_1:{type_:'' for type_ in ['30','120']} for type_1 in ['1000','4000','500','300'] } for year in ['DD_1','DS_1','Betas_1']}
-# TB.create_folders(r'F:\Intrady Beta Pattern', folders_dict)
-
-    print(1)
-
-
-# import numpy as np
-
-# D_Ba = pd.read_csv(r'F:\Intrady Beta Pattern\DD\300\15\1.csv',index_col=0)
-# D = pd.read_csv(r'F:\Intrady Beta Pattern\DS\300\15\1.csv',index_col=0)
-
-    # Muti_Exec_SemiBeta()
-    # Muti_Exec_ConDisconBeta(idxcd=300)
-
-    # Mult_mrg_TD()    
-    # Muti_Exec_TD_Dsort('vw')
-    
-    # Cpt_All_Stock_DS([300],[20,25,30,35,40],n=48, min_=5)
-
-    # Mult_Mrg_DD_res()
-    # Mult_mrg_TD(n=48, min_=5)
-    # Muti_exec_Ssort('vw', 5, ['TDD','DD'],['W'], [300], [20,25,30,35,40])
-    # Muti_exec_Ssort('ew', 5, ['TDD','DD'],['W'], [300], [20,25,30,35,40])
-    # Muti_exec_FMR(5, ['DD'], ['W'], [20,25,30,35,40], index=300)
-# 
-    # BullBear_FamaMach(5, ['DD'], ['W','2W'], [20,25,30,35,40], index=300)
-    # BullBear_Ssort('vw', 5, ['DD'], ['W'], [20,25,30,35,40])  
-    # BullBear_Dsort('vw', 5, ['DD'], ['W'], [20,25,30,35,40])  
-    
-    # Muti_exec_Ssort('ew', 1, ['TDD','DD'],['W','2W'], [300, 500], [15,30,60,120,180,210])
-    # Muti_exec_Ssort('vw', 10, ['TDD','DD'],['2W'], [300, 500], [10,15,20])
-    #
-    # Muti_Exec_TD_Dsort('vw', 5, ['DD'], ['W'], 300, [15,20,25,30,35,40])
-    # Muti_Exec_TD_Dsort('ew', 5, ['DD'], ['W'], 300, [15,20,25,30,35,40])
-
-    # Muti_exec_Ssort('ew',5)
-    # Muti_Exec_TD_Dsort('ew',5)
-    # Muti_exec_FMR(5, ['DD'], ['W'], [20,25,30,35,40], index=300)
-    # Muti_exec_FMR(10, ['TDD','DD'], ['W','2W'], [10,15,20], index=500)
-    # Muti_exec_FMR(1, ['TDD','DD'], ['W','2W'], [15,30,60,120,180,210], index=500)
-
-
-    # Muti_Exec_SemiBeta()
-    # Mrg_SemiBeta(905, 5)
-    # Muti_Exec_RSJ_RV()
-    # Muti_Mrg_Dsort_res(['vw','ew'], 5, ['DD'],['W'], [300], [20,25,30,35,40], False)
-    # Muti_Mrg_Dsort_res('vw', 5, ['TDD','DD'],['2W','W'], [300, 500], [15,20,25,30,35,40])
-    # Muti_Mrg_Dsort_res(['ew','vw'], 10, ['TDD','DD'],['2W','W'], [300, 500], [10,15,20])
-    # Muti_Mrg_Dsort_res('vw', 10, ['TDD','DD'],['2W','W'], [300, 500], [10,15,20])
-    # Muti_Mrg_Dsort_res(['ew','vw'], 1, ['TDD','DD'],['2W','W'], [300, 500], [15,30,60,120,180,210])
-    # Muti_Mrg_Dsort_res('vw', 1, ['TDD','DD'],['2W','W'], [300, 500], [15,30,60,120,180,210])
-
-    # Muti_Bet_on_BetaDispersion('ew', 5, ['TDD','DD'], ['W'], 300, [20,25,30,35,40], [False], rho=0.002)    
-    # Muti_Bet_on_BetaDispersion('ew', 5, ['TDD','DD'], ['2W','W'], 500, [15,20,25,30,35,40], [True, False], rho=0.002)    
-    
-    # Mult_Merge_Ssort_res(['W','2W'], ['TDD','DD'], 1, [300,500], [15,30,60,120,180,210])
-    # Mult_Merge_Ssort_res(['W'], ['TDD','DD'], 5, [300], [20,25,30,35,40])
-    # Mult_Merge_Ssort_res(['W','2W'], ['TDD','DD'], 10, [300,500], [10,15,20])
-    
-    #
-    # Cpt_All_Stock_DS([4000], [25], n=48, min_=5)
-    # Cpt_All_Stock_DS([4000], [30,120], n=240, min_=1)
-
-    # Mult_Mrg_DD_res()
-    
-    # Cpt_All_Stock_DS([500],[15,20],n=24, min_=10)
-    
 
 
 
