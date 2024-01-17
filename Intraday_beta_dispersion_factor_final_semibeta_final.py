@@ -1241,26 +1241,32 @@ def Muti_Bet_on_BetaDispersion(weight_type, min_, D_type_lst, freq_lst, index, e
     
 if __name__ == '__main__':
     
-    # 1. 
-    Cpt_All_Stock_DS([4000], [25], n=48, min_=5)
+    # Create folders for sotring the intraday semi-beta variation estimating results
+    folders_dict = {str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]}
+    TB.create_folders(r'F:\SemiBeta\Intraday_betas', folders_dict)
+    
+    # Create folders for sotring the dispersion of intraday semi-beta variation estimating results
+    folders_dict = {measure:{str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]} for measure in ['BQ100','AutoCorr','Square']}
+    TB.create_folders(r'F:\SemiBeta\Other_measure', folders_dict)
+    
+    # 1. Calculate intraday semi-beta variation and its dispersion
+    Cpt_All_Stock_DS([4000], [15,20,25,30,35,40], n=48, min_=5)
+    
+    # 2. Merge different stock's mean of intraday semi-beta varitions as well as its three different
+    Mult_Mrg_Intraday_Beta_res()
+    Mult_Mrg_Beta_measure(['AutoCorr'], [4000],[5],[15,20,25,30,35,40])
 
-    
-    
-    
-    
-    # control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
-    # for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
-    #     for weight_type in ['ew']:
-    #         Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
+    # 3. Mult generate single sort results
+    Muti_exec_Ssort(['ew'],[300,4000], ['15','20','25','30'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], min_=5, mult=True)
+
+    # 4. Mult generate double sort results    
+    control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
+    for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
+        for weight_type in ['ew']:
+            Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
         
         
-    # Muti_exec_Ssort(['ew'],[300,4000], ['15','20','25','30'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], min_=5, mult=True)
     
-    # folders_dict = {str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]}
-    # TB.create_folders(r'F:\SemiBeta\Intraday_betas', folders_dict)
-    
-    # folders_dict = {measure:{str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]} for measure in ['BQ100','AutoCorr','Square']}
-    # TB.create_folders(r'F:\SemiBeta\Other_measure', folders_dict)
 
     # folders_dict = {type_1:{type_:'' for type_ in ['True','False']} for type_1 in ['15','20','25','30']}
     # TB.create_folders(r'F:\SemiBeta\Sorted_res\Ssort\ew\300', folders_dict)
@@ -1281,6 +1287,8 @@ if __name__ == '__main__':
     # Crt_All_PricingResults_parallel()
 
     # Mult_Merge_BQ_and_AutoCorr()
+    # Mult_Mrg_DD_res()
+    # Mult_mrg_TD(n=48, min_=5)
     
     # Muti_Exec_RSJ_RV()
     
