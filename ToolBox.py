@@ -18,7 +18,7 @@ from multiprocessing import Pool
 import numba as nb
 
 
-###################### 数据计算型函数 #########################################
+###################### Calculated Functions #########################################
 def z_score(x):
     return (x - np.mean(x))/np.std(x)
 
@@ -28,7 +28,7 @@ def nb_mean(arr, axis):
 
 ###############################################################################
 
-# 给出文件夹层次字典，自动生成文件夹和子文件夹
+# Given a dictionary of folder hierarchies, automatically generate folders and subfolders
 def create_folders(parent_path, folders_dict):
     for folder_name, sub_folders in folders_dict.items():
         folder_path = os.path.join(parent_path, folder_name)
@@ -41,7 +41,7 @@ def create_folders(parent_path, folders_dict):
             create_folders(folder_path, sub_folders)
 
 
-# 从文件夹中获取文件的绝对路径
+# Get the absolute path of a file from a folder
 def Tag_FilePath_FromDir(file_dir, is_all=True, suffix='csv'):
     path_list = []
     # 获取当前文件夹，以及所有子文件夹下的所有文件
@@ -62,7 +62,7 @@ def Tag_FilePath_FromDir(file_dir, is_all=True, suffix='csv'):
     return path_list
 
 
-# 将分批下载的基础数据合并成一个数据集
+# Consolidation of batch-downloaded base data into a single dataset
 def Concat_RawData(dataDir,skip_cols=[]):
     dataFile_list = Tag_FilePath_FromDir(dataDir)
     dataDf = pd.DataFrame()
@@ -80,7 +80,7 @@ def Concat_RawData(dataDir,skip_cols=[]):
     return dataDf
 
 
-# 获取给定股票锐思1min数据
+# Get the given stock Rex 1min data
 def Fetch_Stock_HFdata_from_Resset(stkcd, 
                                    data_dir='F:\\HF_MIN\\Resset\\Csv_data', asset_type='stock', minType=1):
     

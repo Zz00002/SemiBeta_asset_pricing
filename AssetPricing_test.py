@@ -28,8 +28,8 @@ class AssetPricingTool:
         else:
             self.data_set = pd.DataFrame(df)
 
-    # 进行Newey-West Test
 
+    # Exec Newey-West Test
     def Exec_NWTest(self,
                     test_array=None,
                     L=None):
@@ -64,8 +64,8 @@ class AssetPricingTool:
 
         return test_result
 
-    # 计算OLS残差和beta
 
+    # Calculate OLS residuals and beta
     def Cpt_ResAndBeta(self,
                        x_tag,
                        y_tag,
@@ -137,6 +137,7 @@ class AssetPricingTool:
             return {'res': res, 'beta': beta, 'NWse': V}
         else:
             return {'res': res, 'beta': beta}
+
 
     def FamaMacBeth_self(self,
                          DF,
@@ -246,15 +247,13 @@ class AssetPricingTool:
 
         return show.dropna(axis=0, how='all').fillna('')
 
-    def Shw_Reg_Result(reg_res):
-        pass
 
     ###########################################################################
-    ######################### 与股票sorting有关 ###############################
+    ## Related to stock sorting
     ###########################################################################
 
-    ########################### 中介函数，必须传入df#############################
-    # 计算加权平均值
+    ## Intermediary function, must be passed df
+    # Calculation of weighted average
     def Cpt_ValueWeight(self,
                         df,
                         avgTag,
@@ -268,8 +267,8 @@ class AssetPricingTool:
         except ZeroDivisionError:
             return np.nan
 
-    # 计算DataFrame中每一个Group的截面均值
 
+    # Calculate the cross-sectional mean of each Group in the DataFrame
     def Cpt_CrossWeightMean(self,
                             df,
                             avgTag,
@@ -290,8 +289,8 @@ class AssetPricingTool:
             vw = vw.set_index(timeTag)
             return vw
 
-    # 计算股票分组
 
+    # Calculate stock grouping
     def Creat_StockGroups(self,
                           data,
                           sortTag,
@@ -316,8 +315,8 @@ class AssetPricingTool:
                 .rename(columns={sortTag: 'Group'})
         return groups
 
-    # 对DataFrame执行计算分组操作
 
+    # Perform computational grouping operations on DataFrame
     def Exec_GroupStockDf(self,
                           df,
                           groupby_list,
@@ -343,9 +342,9 @@ class AssetPricingTool:
         df.reset_index(drop=True, inplace=True)
         return df
 
+
     ###########################################################################
 
-    # 获取单分组结果
     def Exec_SingleSort(self,
                         avgTag,
                         sortTag,
@@ -364,7 +363,7 @@ class AssetPricingTool:
 
         return (result, df)
 
-    # 获取双重分组结果
+
     def Exec_DoubleSort(self,
                         avgTag,
                         sortTag1,
@@ -407,8 +406,8 @@ class AssetPricingTool:
 
         return (result, df)
 
-    # 将截面分组聚合的结果再时序上再进行聚合，并生成二维的数据表
 
+    # Re-aggregate the results of the cross-section grouping aggregation on a time-series basis and generate a two-dimensional data table
     def Creat_SortTimePolymer(self,
                               df=None,
                               avgTag=None,
@@ -431,6 +430,7 @@ class AssetPricingTool:
         else:
             df.set_index('Group', inplace=True)
         return df
+
 
     def Rec_SingleSortRes(self,
                           avgTag,
@@ -482,6 +482,7 @@ class AssetPricingTool:
         SSortRes.loc['p', 'AvgRet'] = self.Exec_NWTest(Ssort['HML'])['pval']
 
         return SSortRes.astype(float).round(4)
+
 
     def Rec_DoubleSortRes(self,
                           avgTag,
@@ -582,80 +583,8 @@ class AssetPricingTool:
 
         return sortRes.astype(float).round(4)
 
-    # 绘制用于进行double—sort的两个变量最低组、最高组、hml组的时序图，并计算相关性
 
-    def Show_SortGroupChart(self,
-                            avgTag,
-                            sortTag,
-                            sortTag_key,
-                            groupsNum1,
-                            groupsNum2,
-                            SortMethod,
-                            dirPath,
-                            weightTag=None):
-
-        double_sort = self.Exec_DoubleSort(avgTag,
-                                           sortTag,
-                                           sortTag_key,
-                                           groupsNum1,
-                                           groupsNum2,
-                                           SortMethod=SortMethod,
-                                           weightTag=weightTag)[0]
-
-        groupName1 = double_sort['Group_{}'.format(
-            sortTag)].sort_values().unique()
-        groupName2 = double_sort['Group_{}'.format(
-            sortTag_key)].sort_values().unique()
-
-        firstGroup1 = groupName1[0]
-        firstGroup2 = groupName2[0]
-        lastGroup1 = groupName1[-1]
-        lastGroup2 = groupName2[-1]
-
-        firstDf1 = double_sort[double_sort['Group_{}'.format(sortTag)] == firstGroup1] \
-            .groupby(double_sort.index.name).mean().rename(columns={avgTag: firstGroup1})
-        firstDf2 = double_sort[double_sort['Group_{}'.format(sortTag_key)] == firstGroup2] \
-            .groupby(double_sort.index.name).mean().rename(columns={avgTag: firstGroup2})
-        firstDf = pd.merge(firstDf1, firstDf2,
-                           left_index=True, right_index=True)
-        ax = firstDf.plot(figsize=(20, 10))
-        fig = ax.get_figure()
-        fig.savefig(
-            r'{}\First Group Time-Series Return Chart.png'.format(dirPath))
-        firstCorr = round(firstDf[firstGroup1].corr(firstDf[firstGroup2]), 4)
-
-        # plt.plot(firstDf.index,firstDf.values)
-        # # plt.xlabel()
-        # plt.text('','','corr:{}'.format(firstCorr))
-        # plt.legend([firstGroup1,firstGroup2])
-        # plt.show()
-
-        lastDf1 = double_sort[double_sort['Group_{}'.format(sortTag)] == lastGroup1] \
-            .groupby(double_sort.index.name).mean().rename(columns={avgTag: lastGroup1})
-        lastDf2 = double_sort[double_sort['Group_{}'.format(sortTag_key)] == lastGroup2] \
-            .groupby(double_sort.index.name).mean().rename(columns={avgTag: lastGroup2})
-        lastDf = pd.merge(lastDf1, lastDf2, left_index=True, right_index=True)
-        ax = lastDf.plot(figsize=(20, 10))
-        fig = ax.get_figure()
-        fig.savefig(
-            r'{}\Last Group Time-Series Return Chart.png'.format(dirPath))
-        lastCorr = round(lastDf[lastGroup1].corr(lastDf[lastGroup2]), 4)
-
-        hmlDf1 = pd.DataFrame(
-            lastDf1[lastGroup1] - firstDf1[firstGroup1]).rename(columns={0: '{}_hml'.format(sortTag)})
-        hmlDf2 = pd.DataFrame(lastDf2[lastGroup2] - firstDf2[firstGroup2]
-                              ).rename(columns={0: '{}_hml'.format(sortTag_key)})
-        hmlDf = pd.merge(hmlDf1, hmlDf2, left_index=True, right_index=True)
-        ax = hmlDf.plot(figsize=(20, 10))
-        fig = ax.get_figure()
-        fig.savefig(
-            r'{}\Last Minus First Group Time-Series Return Chart.png'.format(dirPath))
-        hmlCorr = round(hmlDf['{}_hml'.format(sortTag)].corr(
-            hmlDf['{}_hml'.format(sortTag_key)]), 4)
-
-        return {'最低组相关性': firstCorr, '最高组相关性': lastCorr, '高减低组相关性': hmlCorr}
-
-
+    # Exec fama-macbeth regression and show the summary results
     def FamaMacBeth_summary(self,
                          DF,
                          reg_lst,
