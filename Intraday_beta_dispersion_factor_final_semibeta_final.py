@@ -258,9 +258,68 @@ def Mrg_RSJ_RV(kn):
     RSJ_RV_df.to_csv(r'F:\RSJ_RV\RSJ_RV_{}.csv'.format(kn), index=False)
 
 
+def Cpt_IVOL(df, Stkcd, window=20):
+    
+    def run_regression(df):
+        X = sm.add_constant(df[['mkt', 'smb', 'vmg']])
+        model = sm.OLS(df['ex_ret'], X, missing='drop')
+        results = model.fit()
+        return results.resid.std()
+    
+    df = df.reset_index(drop=True)
+    for i, df_ in enumerate(list(df.rolling(window))):
+        if i >= window-1:
+            df.loc[i,'IVOL'] = run_regression(df_)
+    df.to_csv(r'F:\IVOL\CH3\{}.csv'.format(Stkcd),index=False)
+    print('{} IVOL finished'.format(Stkcd))
 
 
+def Mult_Cpt_IVOL():
+    stock_day_trade_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd'])
+    
+    SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\CH3_daily.csv')
+    SVIC_df.columns = ['Trddt','rf','mkt','smb','vmg']
 
+    IVOL_df = pd.merge(stock_day_trade_data, SVIC_df)
+    IVOL_df = IVOL_df.sort_values(['Stkcd','Trddt']).reset_index(drop=True)
+    IVOL_df['ex_ret'] = IVOL_df.Dretwd - IVOL_df.rf
+            
+    skip_dir1 = r'F:\IVOL\CH3'
+    skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
+
+    num_processes = 16
+    # Create a Pool of processes
+    with Pool(num_processes) as pool:
+        for Stkcd, df in IVOL_df.groupby('Stkcd'):
+            file_name = skip_dir1 + '\\{}.csv'.format(Stkcd)
+            if file_name not in skip_list:
+                pool.apply_async(Cpt_IVOL, (df, Stkcd,))
+    
+        # Close the pool and wait for all processes to finish
+        pool.close()
+        pool.join()
+              
+        
+def Mrg_IVOL():
+    
+    D_Ba_path = r'F:\IVOL\CH3'
+    file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
+    semibeta_list = []
+
+    for file in file_list:
+        try:
+            # print(stkcd)
+            semibeta = pd.read_csv(file, index_col=0).reset_index()
+            semibeta_list.append(semibeta)
+            print(file)
+        except:
+            pass
+        
+    semibeta_df = pd.concat(semibeta_list)
+    semibeta_df['Trddt'] = semibeta_df.Trddt.astype(str)
+    semibeta_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    semibeta_df.dropna(inplace=True)
+    semibeta_df.to_csv(r'F:\IVOL\IVOL.csv', index=False)
 
 
 ###############################################################################
@@ -268,6 +327,7 @@ def Mrg_RSJ_RV(kn):
 ###############################################################################
 
 
+# Create the stocks daily basic data for further empirical study
 def Crt_Stock_base_df():
          
     RSJ_RV = pd.read_csv(r'F:\RSJ_RV\RSJ_RV_5.csv')
@@ -293,7 +353,7 @@ def Crt_Stock_base_df():
         index_demean = data['MarketPort']-index_ret_mean
         stock_demean = data['Dsmvtll']-stock_ret_mean
 
-        # 计算共同的分母部分
+        # Calculate the common denominator component
         deno1 = pow(pow(stock_demean, 2).rolling(window).mean(), 0.5)
         deno2 = pow(index_demean, 2).rolling(window).mean()
 
@@ -333,11 +393,10 @@ def Crt_Stock_base_df():
     return stock_base_df.dropna()
 
 
+# Create all interested variables and resample it into the final analyse frequency
 def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     
-    
-    index_dict = {300:300, 500:905, 4000:4000}
-        
+            
     DS_df = pd.read_csv(r'F:\SemiBeta\Intraday_betas\{0}\{1}_{2}.csv'.format(min_, index_type, est_intervel),index_col=0)
         
     DS_day_df = DS_df.unstack().reset_index().rename(columns={'level_0':'Stkcd',0:'Beta_abs_intra','level_1':'Trddt'})
@@ -355,7 +414,7 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     
     # ABS_df = pd.read_csv(r'F:\SemiBeta\Other_measure\ABS_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     Square_df = pd.read_csv(r'F:\SemiBeta\Other_measure\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    SemiBeta = pd.read_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_5.csv'.format(index_dict[index_type]))    
+    SemiBeta = pd.read_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_5.csv'.format(index_type))    
     AC_df = pd.read_csv(r'F:\SemiBeta\Other_measure\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     BQ100_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     
@@ -399,11 +458,6 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     DS_fin_df = DS_fin_df.dropna()
 
     return DS_fin_df.reset_index(drop=True)
-
-
-
-
-
 
 
 # Do data cleaning as well as creating the basic data of semi-beta variation estimation
@@ -648,94 +702,6 @@ def Mult_Mrg_Beta_measure(D_type_lst, index_lst, min__lst, est_intervel_lst):
         pool.join()
         
 
-
-###############################################################################
-###############################################################################
-
-
-# ---------------------- Numpy array rolling window操作  ---------------
-# 简单操作如果是pandas有的 就转为pandas再处理比较快
-def rolling_window(a, window, axis=0):
-    """
-    返回2D array的滑窗array的array
-    """
-    if axis == 0:
-        shape = (a.shape[0] - window +1, window, a.shape[-1])
-        strides = (a.strides[0],) + a.strides
-        a_rolling = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    elif axis==1:
-        shape = (a.shape[-1] - window +1,) + (a.shape[0], window) 
-        strides = (a.strides[-1],) + a.strides
-        a_rolling = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
-    return a_rolling
-
-
-def Cpt_IVOL(df, Stkcd, window=20):
-    
-    def run_regression(df):
-        X = sm.add_constant(df[['mkt', 'smb', 'vmg']])
-        model = sm.OLS(df['ex_ret'], X, missing='drop')
-        results = model.fit()
-        return results.resid.std()
-    
-    df = df.reset_index(drop=True)
-    for i, df_ in enumerate(list(df.rolling(window))):
-        if i >= window-1:
-            df.loc[i,'IVOL'] = run_regression(df_)
-    df.to_csv(r'F:\IVOL\CH3\{}.csv'.format(Stkcd),index=False)
-    print('{} IVOL finished'.format(Stkcd))
-
-
-def Mult_Cpt_IVOL():
-    stock_day_trade_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd'])
-    
-    SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\CH3_daily.csv')
-    SVIC_df.columns = ['Trddt','rf','mkt','smb','vmg']
-
-    IVOL_df = pd.merge(stock_day_trade_data, SVIC_df)
-    IVOL_df = IVOL_df.sort_values(['Stkcd','Trddt']).reset_index(drop=True)
-    IVOL_df['ex_ret'] = IVOL_df.Dretwd - IVOL_df.rf
-            
-    skip_dir1 = r'F:\IVOL\CH3'
-    skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
-
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
-        for Stkcd, df in IVOL_df.groupby('Stkcd'):
-            file_name = skip_dir1 + '\\{}.csv'.format(Stkcd)
-            if file_name not in skip_list:
-                pool.apply_async(Cpt_IVOL, (df, Stkcd,))
-    
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
-        
-        
-        
-def Mrg_IVOL(kn):
-    
-    D_Ba_path = r'F:\IVOL\CH3'
-    file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
-    semibeta_list = []
-
-    for file in file_list:
-        try:
-            # print(stkcd)
-            semibeta = pd.read_csv(file, index_col=0).reset_index()
-            semibeta_list.append(semibeta)
-            print(file)
-        except:
-            pass
-        
-    semibeta_df = pd.concat(semibeta_list)
-    semibeta_df['Trddt'] = semibeta_df.Trddt.astype(str)
-    semibeta_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    semibeta_df.dropna(inplace=True)
-    semibeta_df.to_csv(r'F:\IVOL\IVOL.csv', index=False)
-
-
-
 def Merge_BQ_and_AutoCorr(index,kn):
     
     D_Ba_path = r'F:\Intrady Beta Pattern\Betasabs_5\{}\{}'.format(index,kn)
@@ -804,8 +770,6 @@ def Mult_Merge_BQ_and_AutoCorr():
 ###############################################################################
 ## Do double and single sort
 ############################################################################### 
-    
-    
     
 def Exec_TD_SSort(SSort_exec_df, min_, index_type, est_window, key, freq='W', weight_type='vw'):
     
@@ -1038,10 +1002,7 @@ def Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index_type, min_=5, est_inter
     print('Finshed Fama-Macbech regression result calculation: {}_{}_{}_{}'.format(key_x_lst, min_, index_type, est_intervel))
     return regres
     
-    
-    
 
-    
 def Muti_exec_FMR(min_, freq_lst, est_lst, index_lst=[300,4000], mult=True):
     
     stock_base_df = Crt_Stock_base_df()
@@ -1069,8 +1030,6 @@ def Muti_exec_FMR(min_, freq_lst, est_lst, index_lst=[300,4000], mult=True):
                 pool.close()
                 pool.join()
             
-
-
 
 def Bet_on_BetaDispersion(SSort_exec_df, min_, index_type, freq, rho=0.002):    
     
