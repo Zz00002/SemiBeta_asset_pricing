@@ -1220,5 +1220,6 @@ if __name__ == '__main__':
     Muti_Bet_on_BetaDispersion(5, ['W'], 300, [15,20,25,30,35,40])    
     Muti_Bet_on_BetaDispersion(5, ['W'], 4000, [15,20,25,30,35,40])    
 
+    ## try again
 
 
