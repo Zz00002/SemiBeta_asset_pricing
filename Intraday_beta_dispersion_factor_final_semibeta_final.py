@@ -20,12 +20,12 @@ import seaborn as sns
 from scipy.stats import norm
 
 
-
-
 ###############################################################################
-## Basic data construction
+## Create controled variables
 ###############################################################################
 
+# continue and discontinue beta
+# From: Bollerslev, T., Li, S.Z., Todorov, V., 2016. Roughing up beta: Continuous versus discontinuous betas and the cross section of expected stock returns. Journal of Financial Economics 120, 464–490. https://doi.org/10.1016/j.jfineco.2016.02.001
 
 # Calculate continuse and discontinuse beta    
 def Exec_ConDisconBeta(stkcd, hf_index_, idxcd=300):
@@ -89,6 +89,9 @@ def Mrg_ConDisconBeta(index, kn):
     ConDisconBeta_df.to_csv(r'F:\ConDisconBeta\ConDisconBeta_{}_{}.csv'.format(index, kn), index=False)
         
 
+
+# realized beta and four different semi-beta
+# From: Bollerslev, T., Patton, A.J., Quaedvlieg, R., 2022. Realized semibetas: Disentangling “good” and “bad” downside risks. Journal of Financial Economics 144, 227–246. https://doi.org/10.1016/j.jfineco.2021.05.056
 
 # Calculate simple semi-beta  
 def Exec_SemiBeta(index_dict,k,idxcd,stkcd):
@@ -185,6 +188,10 @@ def Mult_Mrg_SemiBeta(idx_lst, kn_lst):
         pool.close()
         pool.join()
 
+
+# Related sign jump that using RV to construct
+# From: Bollerslev, T., Li, S.Z., Zhao, B., 2020. Good Volatility, Bad Volatility, and the Cross Section of Stock Returns. J. Financ. Quant. Anal. 55, 751–781. https://doi.org/10.1017/S0022109019000097
+
 # Calculate RSJ base on RV  
 def Exec_RSJ_on_RV(stkcd, k):
     print('start {}'.format(stkcd))
@@ -249,6 +256,152 @@ def Mrg_RSJ_RV(kn):
     RSJ_RV_df.dropna(inplace=True)
 
     RSJ_RV_df.to_csv(r'F:\RSJ_RV\RSJ_RV_{}.csv'.format(kn), index=False)
+
+
+
+
+
+
+
+###############################################################################
+## Basic data construction
+###############################################################################
+
+
+def Crt_Stock_base_df():
+         
+    RSJ_RV = pd.read_csv(r'F:\RSJ_RV\RSJ_RV_5.csv')
+    ConDisconBeta = pd.read_csv(r'F:\ConDisconBeta\ConDisconBeta_300_5.csv')
+    BM_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\BM.csv')  
+       
+    stock_day_trade_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd', 'Dsmvtll', 'Dnshrtrd', 'Adjprcnd','Clsprc'])
+    stock_day_trade_data = stock_day_trade_data.sort_values(['Stkcd','Trddt'])
+    stock_day_trade_data['ME'] = stock_day_trade_data['Dsmvtll'].values
+    stock_day_trade_data['MOM'] = stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(252)/stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(21) - 1
+    stock_day_trade_data['ILLIQ'] = abs(stock_day_trade_data['Dretwd'])/stock_day_trade_data['Dnshrtrd']/stock_day_trade_data['Clsprc']
+    
+    stock_day_trade_data['Weighted_Ret'] = stock_day_trade_data['ME'] * stock_day_trade_data['Dretwd']
+    grouped = stock_day_trade_data.groupby('Trddt')
+    market_returns = grouped['Weighted_Ret'].sum() / grouped['ME'].sum()
+    stock_day_trade_data = pd.merge(stock_day_trade_data, market_returns.to_frame().rename(columns={0:'MarketPort'}),left_on='Trddt',right_index=True)
+    stock_day_trade_data = stock_day_trade_data.sort_values(['Stkcd','Trddt']).reset_index(drop=True)  
+    
+    def Cpt_CSK_CKT(data, window=20):
+
+        index_ret_mean = data['MarketPort'].rolling(window).mean()
+        stock_ret_mean = data['Dsmvtll'].rolling(window).mean()
+        index_demean = data['MarketPort']-index_ret_mean
+        stock_demean = data['Dsmvtll']-stock_ret_mean
+
+        # 计算共同的分母部分
+        deno1 = pow(pow(stock_demean, 2).rolling(window).mean(), 0.5)
+        deno2 = pow(index_demean, 2).rolling(window).mean()
+
+        mole_csk = stock_demean*pow(index_demean, 2)
+        CSK = mole_csk.rolling(window).mean()/deno1/deno2
+
+        mole_ckt = stock_demean*pow(index_demean, 3)
+        CKT = mole_ckt.rolling(window).mean()/deno1/pow(deno2, 1.5)
+        return (CSK, CKT)
+    
+    CSK, CKT = Cpt_CSK_CKT(stock_day_trade_data, window=20)
+    stock_day_trade_data['CSK'] = CSK
+    stock_day_trade_data['CKT'] = CKT
+    stock_day_trade_data = stock_day_trade_data.drop(['Weighted_Ret','MarketPort'], axis=1)
+    
+    stock_day_trade_data = pd.merge(stock_day_trade_data, RSJ_RV)
+    stock_day_trade_data = pd.merge(stock_day_trade_data, ConDisconBeta)
+    
+    stock_day_trade_data['Trddt'] = pd.to_datetime(stock_day_trade_data.Trddt)
+    stock_day_trade_data['Trdmnt'] = stock_day_trade_data['Trddt'].dt.strftime('%Y-%m')
+    stock_day_trade_data = pd.merge(stock_day_trade_data,BM_df)
+    stock_day_trade_data = stock_day_trade_data.drop('Trdmnt', axis=1)
+    
+    SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\CH3_daily.csv')
+    SVIC_df.columns = ['Trddt','rf','mkt','smb','vmg']
+    SVIC_df['Trddt'] = pd.to_datetime(SVIC_df.Trddt)
+
+    stock_base_df = pd.merge(stock_day_trade_data, SVIC_df)
+    stock_base_df['ex_ret'] = stock_base_df.Dretwd - stock_base_df.rf
+    
+    IVOL = pd.read_csv(r'F:\IVOL\IVOL.csv')
+    IVOL = IVOL[['Stkcd','Trddt','IVOL']]
+    IVOL['Trddt'] = pd.to_datetime(IVOL['Trddt'])
+    stock_base_df = pd.merge(stock_base_df, IVOL)
+
+    # stock_base_df = stock_base_df.sort_values(['Stkcd','Trddt']).reset_index(drop=True)
+    return stock_base_df.dropna()
+
+
+def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
+    
+    
+    index_dict = {300:300, 500:905, 4000:4000}
+        
+    DS_df = pd.read_csv(r'F:\SemiBeta\Intraday_betas\{0}\{1}_{2}.csv'.format(min_, index_type, est_intervel),index_col=0)
+        
+    DS_day_df = DS_df.unstack().reset_index().rename(columns={'level_0':'Stkcd',0:'Beta_abs_intra','level_1':'Trddt'})
+    DS_day_df = DS_day_df.dropna()
+    try:
+        DS_day_df = DS_day_df.rename(columns={'datetime':'Trddt'})
+    except:
+        pass
+    
+    DS_day_df = DS_day_df.set_index('Trddt')
+    DS_exec_df = DS_day_df.copy()
+    DS_exec_df['Stkcd'] = DS_exec_df.Stkcd.astype(int)
+    DS_exec_df.index = DS_exec_df.reset_index()['Trddt'].apply(lambda x: x[:10])
+    DS_exec_df = DS_exec_df.reset_index()
+    
+    # ABS_df = pd.read_csv(r'F:\SemiBeta\Other_measure\ABS_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    Square_df = pd.read_csv(r'F:\SemiBeta\Other_measure\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    SemiBeta = pd.read_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_5.csv'.format(index_dict[index_type]))    
+    AC_df = pd.read_csv(r'F:\SemiBeta\Other_measure\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    BQ100_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    
+    DS_exec_df = pd.merge(DS_exec_df, Square_df)
+    DS_exec_df = pd.merge(DS_exec_df, AC_df)
+    DS_exec_df = pd.merge(DS_exec_df, BQ100_df)
+    DS_exec_df = pd.merge(DS_exec_df, SemiBeta)
+    
+    DS_exec_df['Trddt'] = pd.to_datetime(DS_exec_df['Trddt'])
+    DS_exec_df = pd.merge(stock_base_df, DS_exec_df, right_on=['Trddt','Stkcd'], left_on=['Trddt','Stkcd'])
+    DS_exec_df = DS_exec_df[['Stkcd', 'Trddt', 'ex_ret', 'Dretwd',
+                              'rf', 'mkt', 'vmg', 'smb',
+                              'Beta_abs_intra','BQ100','AutoCorr','Square',
+                              'beta_n','beta_mn','beta_p','beta_mp','beta',
+                              'BM','ME', 'MOM', 'ILLIQ', 'IVOL','CSK','CKT',
+                              'RSJ','conBeta', 'disconBeta']]
+    DS_exec_df['AutoCorr'] = -DS_exec_df['AutoCorr']
+
+    
+    DS_exec_df['Beta_neg'] = DS_exec_df.beta_n - DS_exec_df.beta_mn
+    DS_exec_df['Beta_pos'] = DS_exec_df.beta_p - DS_exec_df.beta_mp
+    DS_exec_df['Beta_abs'] = -DS_exec_df['Beta_neg'] + DS_exec_df['Beta_pos']
+    DS_exec_df['semi_beta_vari'] = pow(DS_exec_df['Beta_abs'],2)
+    DS_exec_df['abs_semi_beta_vari'] = abs(DS_exec_df['Beta_abs'])
+
+    Factors = DS_exec_df.groupby([pd.Grouper(key='Trddt',freq=freq)])[['mkt', 'vmg', 'smb']].mean().reset_index().dropna()
+    DS_exec_df = DS_exec_df.drop(['mkt', 'vmg', 'smb'], axis=1)
+    
+    DS_fin_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)]).mean().drop(['Dretwd','ex_ret'],axis=1)
+    REV_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd','ex_ret']].sum().rename(columns={'Dretwd': 'REV'})
+    MAX_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd']].max().rename(columns={'Dretwd': 'MAX'})
+    MIN_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd']].min().rename(columns={'Dretwd': 'MIN'})
+    DS_fin_df = pd.concat([DS_fin_df, MAX_df, MIN_df,REV_df], axis=1)  
+    DS_fin_df = DS_fin_df.dropna()
+
+    # DS_fin_df = DS_fin_df.drop('Stkcd',axis=1).reset_index()
+    DS_fin_df = DS_fin_df.reset_index()
+    DS_fin_df = pd.merge(DS_fin_df, Factors).sort_values(['Stkcd','Trddt'])
+    DS_fin_df['retShit'] = DS_fin_df.groupby('Stkcd').ex_ret.shift(-1)
+    DS_fin_df['retShit'] = DS_fin_df['retShit'] * 100
+    DS_fin_df = DS_fin_df.dropna()
+
+    return DS_fin_df.reset_index(drop=True)
+
+
+
 
 
 
@@ -645,148 +798,6 @@ def Mult_Merge_BQ_and_AutoCorr():
         pool.join()
 
 
-
-def Crt_Stock_base_df():
-         
-    RSJ_RV = pd.read_csv(r'F:\RSJ_RV\RSJ_RV_5.csv')
-    ConDisconBeta = pd.read_csv(r'F:\ConDisconBeta\ConDisconBeta_300_5.csv')
-    BM_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\BM.csv')  
-       
-    # stock_day_trade_data = pd.read_csv(r'F:\Intrady Beta Pattern\SVIC_day.csv')
-    stock_day_trade_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd', 'Dsmvtll', 'Dnshrtrd', 'Adjprcnd','Clsprc'])
-    stock_day_trade_data = stock_day_trade_data.sort_values(['Stkcd','Trddt'])
-    stock_day_trade_data['ME'] = stock_day_trade_data['Dsmvtll'].values
-    stock_day_trade_data['MOM'] = stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(252)/stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(21) - 1
-    stock_day_trade_data['ILLIQ'] = abs(stock_day_trade_data['Dretwd'])/stock_day_trade_data['Dnshrtrd']/stock_day_trade_data['Clsprc']
-    
-    stock_day_trade_data['Weighted_Ret'] = stock_day_trade_data['ME'] * stock_day_trade_data['Dretwd']
-    grouped = stock_day_trade_data.groupby('Trddt')
-    market_returns = grouped['Weighted_Ret'].sum() / grouped['ME'].sum()
-    stock_day_trade_data = pd.merge(stock_day_trade_data, market_returns.to_frame().rename(columns={0:'MarketPort'}),left_on='Trddt',right_index=True)
-    stock_day_trade_data = stock_day_trade_data.sort_values(['Stkcd','Trddt']).reset_index(drop=True)  
-    
-    def Cpt_CSK_CKT(data, window=20):
-
-        index_ret_mean = data['MarketPort'].rolling(window).mean()
-        stock_ret_mean = data['Dsmvtll'].rolling(window).mean()
-        index_demean = data['MarketPort']-index_ret_mean
-        stock_demean = data['Dsmvtll']-stock_ret_mean
-
-        # 计算共同的分母部分
-        deno1 = pow(pow(stock_demean, 2).rolling(window).mean(), 0.5)
-        deno2 = pow(index_demean, 2).rolling(window).mean()
-
-        mole_csk = stock_demean*pow(index_demean, 2)
-        CSK = mole_csk.rolling(window).mean()/deno1/deno2
-
-        mole_ckt = stock_demean*pow(index_demean, 3)
-        CKT = mole_ckt.rolling(window).mean()/deno1/pow(deno2, 1.5)
-        return (CSK, CKT)
-    
-    CSK, CKT = Cpt_CSK_CKT(stock_day_trade_data, window=20)
-    stock_day_trade_data['CSK'] = CSK
-    stock_day_trade_data['CKT'] = CKT
-    stock_day_trade_data = stock_day_trade_data.drop(['Weighted_Ret','MarketPort'], axis=1)
-    
-    stock_day_trade_data = pd.merge(stock_day_trade_data, RSJ_RV)
-    stock_day_trade_data = pd.merge(stock_day_trade_data, ConDisconBeta)
-    
-    stock_day_trade_data['Trddt'] = pd.to_datetime(stock_day_trade_data.Trddt)
-    stock_day_trade_data['Trdmnt'] = stock_day_trade_data['Trddt'].dt.strftime('%Y-%m')
-    stock_day_trade_data = pd.merge(stock_day_trade_data,BM_df)
-    stock_day_trade_data = stock_day_trade_data.drop('Trdmnt', axis=1)
-    
-    # SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\Stambaugh SVIC\CH_4_fac_daily_update_20211231.csv',header=9)
-    SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\CH3_daily.csv')
-    SVIC_df.columns = ['Trddt','rf','mkt','smb','vmg']
-    SVIC_df['Trddt'] = pd.to_datetime(SVIC_df.Trddt)
-    # SVIC_df['Trddt'] = SVIC_df.date.apply(lambda x:pd.to_datetime(str(x)[:4] + str(x)[4:6] + str(x)[6:] ))
-    # SVIC_df[['rf_dly','mktrf','VMG','SMB','PMO']] = SVIC_df[['rf_dly','mktrf','VMG','SMB','PMO']]/100
-    # SVIC_df[['mkt','vmg','smb']] = SVIC_df[['mkt','vmg','smb']]/100
-
-    stock_base_df = pd.merge(stock_day_trade_data, SVIC_df)
-    stock_base_df['ex_ret'] = stock_base_df.Dretwd - stock_base_df.rf
-    # stock_base_df['IVOL'] = APT.Cpt_ResAndBeta(['mktrf', 'VMG', 'SMB', 'PMO'], 'ex_ret', df=stock_base_df)['res']
-    # stock_base_df['IVOL'] = APT.Cpt_ResAndBeta(['mkt', 'smb', 'vmg'], 'ex_ret', df=stock_base_df)['res']
-    # stock_base_df['IVOL'] = pow(stock_base_df.IVOL, 2)
-    
-    IVOL = pd.read_csv(r'F:\IVOL\IVOL.csv')
-    IVOL = IVOL[['Stkcd','Trddt','IVOL']]
-    IVOL['Trddt'] = pd.to_datetime(IVOL['Trddt'])
-    stock_base_df = pd.merge(stock_base_df, IVOL)
-
-    # stock_base_df = stock_base_df.sort_values(['Stkcd','Trddt']).reset_index(drop=True)
-    return stock_base_df.dropna()
-
-
-
-# ME MOM REV RV IVOL ILLIQ
-def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
-    
-    
-    index_dict = {300:300, 500:905, 4000:4000}
-        
-    DS_df = pd.read_csv(r'F:\SemiBeta\Intraday_betas\{0}\{1}_{2}.csv'.format(min_, index_type, est_intervel),index_col=0)
-        
-    DS_day_df = DS_df.unstack().reset_index().rename(columns={'level_0':'Stkcd',0:'Beta_abs_intra','level_1':'Trddt'})
-    DS_day_df = DS_day_df.dropna()
-    try:
-        DS_day_df = DS_day_df.rename(columns={'datetime':'Trddt'})
-    except:
-        pass
-    
-    DS_day_df = DS_day_df.set_index('Trddt')
-    DS_exec_df = DS_day_df.copy()
-    DS_exec_df['Stkcd'] = DS_exec_df.Stkcd.astype(int)
-    DS_exec_df.index = DS_exec_df.reset_index()['Trddt'].apply(lambda x: x[:10])
-    DS_exec_df = DS_exec_df.reset_index()
-    
-    # ABS_df = pd.read_csv(r'F:\SemiBeta\Other_measure\ABS_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    Square_df = pd.read_csv(r'F:\SemiBeta\Other_measure\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    SemiBeta = pd.read_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_5.csv'.format(index_dict[index_type]))    
-    AC_df = pd.read_csv(r'F:\SemiBeta\Other_measure\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    BQ100_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    
-    DS_exec_df = pd.merge(DS_exec_df, Square_df)
-    DS_exec_df = pd.merge(DS_exec_df, AC_df)
-    DS_exec_df = pd.merge(DS_exec_df, BQ100_df)
-    DS_exec_df = pd.merge(DS_exec_df, SemiBeta)
-    
-    DS_exec_df['Trddt'] = pd.to_datetime(DS_exec_df['Trddt'])
-    DS_exec_df = pd.merge(stock_base_df, DS_exec_df, right_on=['Trddt','Stkcd'], left_on=['Trddt','Stkcd'])
-    DS_exec_df = DS_exec_df[['Stkcd', 'Trddt', 'ex_ret', 'Dretwd',
-                              'rf', 'mkt', 'vmg', 'smb',
-                              'Beta_abs_intra','BQ100','AutoCorr','Square',
-                              'beta_n','beta_mn','beta_p','beta_mp','beta',
-                              'BM','ME', 'MOM', 'ILLIQ', 'IVOL','CSK','CKT',
-                              'RSJ','conBeta', 'disconBeta']]
-    DS_exec_df['AutoCorr'] = -DS_exec_df['AutoCorr']
-
-    
-    DS_exec_df['Beta_neg'] = DS_exec_df.beta_n - DS_exec_df.beta_mn
-    DS_exec_df['Beta_pos'] = DS_exec_df.beta_p - DS_exec_df.beta_mp
-    DS_exec_df['Beta_abs'] = -DS_exec_df['Beta_neg'] + DS_exec_df['Beta_pos']
-    DS_exec_df['semi_beta_vari'] = pow(DS_exec_df['Beta_abs'],2)
-    DS_exec_df['abs_semi_beta_vari'] = abs(DS_exec_df['Beta_abs'])
-
-    Factors = DS_exec_df.groupby([pd.Grouper(key='Trddt',freq=freq)])[['mkt', 'vmg', 'smb']].mean().reset_index().dropna()
-    DS_exec_df = DS_exec_df.drop(['mkt', 'vmg', 'smb'], axis=1)
-    
-    DS_fin_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)]).mean().drop(['Dretwd','ex_ret'],axis=1)
-    REV_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd','ex_ret']].sum().rename(columns={'Dretwd': 'REV'})
-    MAX_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd']].max().rename(columns={'Dretwd': 'MAX'})
-    MIN_df = DS_exec_df.groupby(['Stkcd', pd.Grouper(key='Trddt',freq=freq)])[['Dretwd']].min().rename(columns={'Dretwd': 'MIN'})
-    DS_fin_df = pd.concat([DS_fin_df, MAX_df, MIN_df,REV_df], axis=1)  
-    DS_fin_df = DS_fin_df.dropna()
-
-    # DS_fin_df = DS_fin_df.drop('Stkcd',axis=1).reset_index()
-    DS_fin_df = DS_fin_df.reset_index()
-    DS_fin_df = pd.merge(DS_fin_df, Factors).sort_values(['Stkcd','Trddt'])
-    DS_fin_df['retShit'] = DS_fin_df.groupby('Stkcd').ex_ret.shift(-1)
-    DS_fin_df['retShit'] = DS_fin_df['retShit'] * 100
-    DS_fin_df = DS_fin_df.dropna()
-
-    return DS_fin_df.reset_index(drop=True)
 
 
 
@@ -1220,6 +1231,5 @@ if __name__ == '__main__':
     Muti_Bet_on_BetaDispersion(5, ['W'], 300, [15,20,25,30,35,40])    
     Muti_Bet_on_BetaDispersion(5, ['W'], 4000, [15,20,25,30,35,40])    
 
-    ## try again
 
 
