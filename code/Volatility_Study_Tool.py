@@ -46,6 +46,39 @@ class Volatility_Tool():
         return hf_data_df
     
     
+    def Cpt_ContJump_Truncate(self, hf_data_df_, minTag='time', tau=2.5, omega=0.49):
+        
+        hf_data_df = hf_data_df_.copy()
+        n = len(hf_data_df[minTag].unique())
+        hf_data_df['minvol'] = np.where(hf_data_df.rv>hf_data_df.bv, hf_data_df.bv,hf_data_df.rv)
+        hf_data_df['alpha_trun'] = tau * np.sqrt(hf_data_df.minvol) * pow(n,-omega)
+        hf_data_df = hf_data_df.drop(['minvol'], axis=1)
+        
+        return hf_data_df
+    
+    
+    def Cpt_TOD_VolPattern(self, hf_data_df_, retTag, minTag='time', crtRet=False):
+        
+        hf_data_df = hf_data_df_.copy()        
+    
+        if crtRet:
+            hf_data_df = self.Cpt_HF_LogReturn(hf_data_df.copy())
+            
+        else:
+            hf_data_df = self.Cpt_RM(hf_data_df, retTag, rm=['rv','bv'])
+            hf_data_df = self.Cpt_ContJump_Truncate(hf_data_df)
+            hf_data_df['C_tag'] = np.where(abs(hf_data_df[retTag])<=hf_data_df.alpha_trun, 1, 0)
+            
+            hf_data_df['C_ret2'] = pow(hf_data_df.C_tag * hf_data_df[retTag],2)
+                
+            
+            TOD = hf_data_df.groupby(minTag).C_ret2.mean()/hf_data_df.C_ret2.mean()
+            TOD = TOD.to_frame().reset_index().rename(columns={'C_ret2':'TOD'})
+            hf_data_df = pd.merge(hf_data_df, TOD)
+                    
+        return hf_data_df    
+    
+    
     def Cpt_RM(self, hf_data_df_, retTag, dayTag='Trddt', minTag='time', rm=None):
        
         hf_data_df = hf_data_df_.copy()

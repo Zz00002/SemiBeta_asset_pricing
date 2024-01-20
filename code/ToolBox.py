@@ -15,14 +15,55 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
 from multiprocessing import Pool
-import numba as nb
+import os
+
+
+def CreateTimeStrList(start=None, 
+                      end=None,
+                      standard='seconds',
+                      spacing=3):                                             
+
+    # Creating a Date Auxiliary Table
+    if start is None:
+        start = '00:00:00'
+    if end is None:
+        end = datetime.datetime.now().strftime('%H:%M:%S')
+
+    # Conversion to date format
+    time_list = []
+    time_list.append(start)
+
+    start = datetime.datetime.strptime(start, '%H:%M:%S')  # Here strptime is converting the str format to a time format
+    end = datetime.datetime.strptime(end, '%H:%M:%S')
+    standard = standard.lower()
+    
+    while start < end:
+        if standard in ['h','hours']:
+            # Date overlay one hour
+            start += datetime.timedelta(hours=+spacing)
+            # Date to String to List
+            time_list.append(start.strftime('%H:%M:%S'))   # Here strftime is converting the time format to a string format
+            
+        if standard in ['m','minutes']:
+            # start
+            start += datetime.timedelta(minutes=+spacing)
+            # Date to String to List
+            time_list.append(start.strftime('%H:%M:%S'))
+
+        if standard in ['s','seconds']:
+            # Date overlay one hour
+            start += datetime.timedelta(seconds=+spacing)
+            # Date to String to List   
+            time_list.append(start.strftime('%H:%M:%S'))
+            
+    return time_list 
+
 
 
 ###################### Calculated Functions #########################################
 def z_score(x):
     return (x - np.mean(x))/np.std(x)
 
-@nb.njit
 def nb_mean(arr, axis):
     return np.sum(arr, axis=axis) / arr.shape[axis]
 
@@ -81,30 +122,22 @@ def Concat_RawData(dataDir,skip_cols=[]):
 
 
 # Get the given stock Rex 1min data
-def Fetch_Stock_HFdata_from_Resset(stkcd, 
-                                   data_dir='F:\\HF_MIN\\Resset\\Csv_data', asset_type='stock', minType=1):
+def Fetch_Stock_HFdata_from_Resset(stkcd, asset_type='stock', minType=1):
     
-    # get high frequency stock data
-    hf_data_df = pd.DataFrame()
-    for year in range(2005,2023):
-        base_dir = data_dir + '\\{0}\\{1}'.format(year, asset_type)
-        data_path = base_dir + '\\{0}.csv'.format(str(stkcd).zfill(6))
-        try:
-            df = pd.read_csv(data_path)
-            hf_data_df = pd.concat([hf_data_df, df])
-        except:
-            try:
-                data_path = base_dir + '\\{0}.csv'.format(int(stkcd))
-                df = pd.read_csv(data_path)
-                hf_data_df = pd.concat([hf_data_df, df])
-            except:
-                continue
-        
+    data_dir = os.getcwd()
+    
+    data_path = data_dir + '\\data_sample\\{0}\\{1}.csv'.format(asset_type, str(stkcd).zfill(6))
+    try:
+        df = pd.read_csv(data_path)
+    except:
+        data_path = data_dir + '\\data_sample\\{0}\\{1}.csv'.format(asset_type,int(stkcd))
+        df = pd.read_csv(data_path)
+                
     # select data that time within 09:30:00-11:30:00 and 13:00:00-15:00:00
     all_time_list = CreateTimeStrList(start='09:31:00', end='15:00:00', standard='M', spacing=1)
     drop_time_list = CreateTimeStrList(start='11:31:00', end='13:00:00', standard='M', spacing=1)
     use_time_list = list(set(all_time_list) - set(drop_time_list))
-    hf_data_df = hf_data_df.loc[hf_data_df.time.isin(use_time_list)]
+    hf_data_df = df.loc[df.time.isin(use_time_list)]
     
     hf_data_df = hf_data_df.rename(columns={'date':'Trddt'})    
     hf_data_df = hf_data_df.sort_values(['Trddt','time'])
@@ -137,15 +170,6 @@ def Fetch_Stock_HFdata_from_Resset(stkcd,
     hf_data_df = hf_data_df.groupby('Trddt').fillna(method='bfill')
     hf_data_df = hf_data_df.reset_index()
     
-    # hf_data_df = pd.read_csv(r'F:\HF_MIN\Resset\A_Index_15.csv')
-    # minType = 15
-    # all_dates = pd.DataFrame({'Trddt': sorted(hf_data_df.Trddt.unique())})
-    # all_times = pd.DataFrame({'time': hf_data_df.time.unique().tolist()})
-    # merged_df = pd.merge(all_dates, all_times, how='cross')
-    # hf_data_df = pd.merge(merged_df, hf_data_df, on=['time', 'Trddt'], how='left')
-    
-    
-    # hf_data_df.to_csv(r'F:\HF_MIN\Resset\A_Index_15.csv',index=False)
     return hf_data_df
 
 

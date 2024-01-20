@@ -12,12 +12,14 @@ from matplotlib import pyplot as plt
 import re
 from AssetPricing_test import AssetPricingTool
 from multiprocessing import Pool, cpu_count
-import numba as nb
 from Volatility_Study_Tool import Volatility_Tool
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import norm
+import os
+
+os.chdir('..')
 
 
 ###############################################################################
@@ -28,46 +30,63 @@ from scipy.stats import norm
 # From: Bollerslev, T., Li, S.Z., Todorov, V., 2016. Roughing up beta: Continuous versus discontinuous betas and the cross section of expected stock returns. Journal of Financial Economics 120, 464–490. https://doi.org/10.1016/j.jfineco.2016.02.001
 
 # Calculate continuse and discontinuse beta    
-def Exec_ConDisconBeta(stkcd, hf_index_, idxcd=300):
-    
+def Exec_ConDisconBeta(stkcd, hf_index_, idxcd=300, min_=5):
+        
+    data_dir = os.getcwd()
+
     VT = Volatility_Tool()
-    hf_stock_ = TB.Fetch_Stock_HFdata_from_Resset(stkcd, minType=5)
+    hf_stock_ = TB.Fetch_Stock_HFdata_from_Resset(stkcd, minType=min_)
+    
+    print(data_dir)
+
     hf_stock_ = VT.Cpt_HF_LogReturn(hf_stock_).rename(columns={'log_close_diff':'ret_stk'})[['Trddt','time','ret_stk']]
     
     beta_day_df = VT.Cpt_ConDiscon_Beta(hf_stock_, hf_index_)
     beta_day_df['Stkcd'] = stkcd
     
-    beta_day_df.to_csv(r'F:\ConDisconBeta\{}\{}\{}.csv'.format(idxcd, 5, stkcd), index=False)
-    print('Finshed ConDisconBeta result calculation: {}_{}_{}'.format(idxcd, 5, stkcd))
+    beta_day_df.to_csv(data_dir + '\\data_sample\\ConDisconBeta\\{}\\{}\\{}.csv'.format(min_, idxcd, stkcd), index=False)
+    print('Finshed ConDisconBeta result calculation: {}_{}_{}'.format(min_, idxcd, stkcd))
+    
     
 # Mult Calculate continuse and discontinuse beta    
-def Muti_Exec_ConDisconBeta(idxcd=300):
+def Muti_Exec_ConDisconBeta(idxcd=300, min_=5, mult=True):
     
+    data_dir = os.getcwd()
+
     VT = Volatility_Tool()
-    stock_base_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV.csv')
-    hf_index_ = TB.Fetch_Stock_HFdata_from_Resset(idxcd, asset_type='index', minType=5)
+    stock_base_df = pd.read_csv(data_dir + '\\data_sample\\SAVIC_saveMV.csv')
+    hf_index_ = TB.Fetch_Stock_HFdata_from_Resset(idxcd, asset_type='index', minType=min_)
     hf_index_ = VT.Cpt_HF_LogReturn(hf_index_).rename(columns={'log_close_diff':'ret_idx'})[['Trddt','time','ret_idx']]
     
-    skip_dir1 = r'F:\ConDisconBeta'
+    skip_dir1 = data_dir + '\\data_sample\\ConDisconBeta'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
 
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
-        for idxcd in [300]:
+    if mult:
+        num_processes = 8
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
             for stkcd in stock_base_df.Stkcd.unique().tolist():
-                file_name = skip_dir1 + '\\{}\\{}\\{}.csv'.format(idxcd, 5, stkcd)
+                file_name = skip_dir1 + '\\{}\\{}\\{}.csv'.format(min_, idxcd, stkcd)
                 if file_name not in skip_list:
+                    print(file_name)
                     pool.apply_async(Exec_ConDisconBeta, (stkcd, hf_index_))
-    
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+        
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+    else:
+        for stkcd in stock_base_df.Stkcd.unique().tolist():
+            file_name = skip_dir1 + '\\{}\\{}\\{}.csv'.format(min_, idxcd, stkcd)
+            if file_name not in skip_list:
+                Exec_ConDisconBeta(stkcd, hf_index_)
+        
 
 # Merging continuse and discontinuse beta results
-def Mrg_ConDisconBeta(index, kn):
+def Mrg_ConDisconBeta(index, min_=5):
     
-    D_Ba_path = r'F:\ConDisconBeta\{}\{}'.format(index, kn)
+    data_dir = os.getcwd()
+    
+    D_Ba_path = data_dir + '\\data_sample\\ConDisconBeta\\{}\\{}'.format(min_,index)
     file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
     ConDisconBeta_list = []
 
@@ -86,73 +105,86 @@ def Mrg_ConDisconBeta(index, kn):
     ConDisconBeta_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     ConDisconBeta_df.dropna(inplace=True)
     
-    ConDisconBeta_df.to_csv(r'F:\ConDisconBeta\ConDisconBeta_{}_{}.csv'.format(index, kn), index=False)
-        
+    ConDisconBeta_df.to_csv(data_dir + '\\data_sample\\{}\\ConDisconBeta_{}_{}.csv'.format(min_, index, min_), index=False)
+    print('finished ConDisconBeta_{}_{}.csv'.format(index, min_))
 
 
 # realized beta and four different semi-beta
 # From: Bollerslev, T., Patton, A.J., Quaedvlieg, R., 2022. Realized semibetas: Disentangling “good” and “bad” downside risks. Journal of Financial Economics 144, 227–246. https://doi.org/10.1016/j.jfineco.2021.05.056
 
 # Calculate simple semi-beta  
-def Exec_SemiBeta(index_dict,k,idxcd,stkcd):
-
+def Exec_SemiBeta(index_dict, min_,idxcd,stkcd):
+    
+    data_dir = os.getcwd()
     VT = Volatility_Tool()    
 
     try:
-        hf_stock_ = TB.Fetch_Stock_HFdata_from_Resset(stkcd, minType=k)
+        hf_stock_ = TB.Fetch_Stock_HFdata_from_Resset(stkcd, minType=min_)
         hf_stock_ = VT.Cpt_HF_LogReturn(hf_stock_).rename(columns={'log_close_diff':'ret_stk'})[['Trddt','time','ret_stk']]
     
         hf_index_ = VT.Cpt_HF_LogReturn(index_dict[idxcd])
         hf_index_ = VT.Cpt_HF_LogReturn(hf_index_).rename(columns={'log_close_diff':'ret_idx'})[['Trddt','time','ret_idx']]
     
-    
         beta_day_df = VT.Cpt_SemiBeta(hf_stock_, hf_index_)
-        beta_day_df.to_csv(r'F:\SemiBeta\Betas\{}\{}\{}.csv'.format(idxcd, k, stkcd), index=False)
-        print('Finshed SemiBeta result calculation: {}_{}_{}'.format(idxcd, k, stkcd))
+        beta_day_df.to_csv(data_dir + '\\data_sample\\SemiBeta\\Betas\\{}\\{}\\{}.csv'.format(min_, idxcd, stkcd), index=False)
+        print('Finshed SemiBeta result calculation: {}_{}_{}'.format(min_, idxcd, stkcd))
 
     except:
-        pd.DataFrame([stkcd,idxcd,k]).to_csv(r'F:\SemiBeta\error\error_{}_{}_{}.csv'.format(stkcd,idxcd,k))
-        print('error_{}_{}_{}'.format(stkcd,idxcd,k))
+        pd.DataFrame([stkcd,idxcd,min_]).to_csv(data_dir + '\\data_sample\\SemiBeta\\error\\error_{}_{}_{}.csv'.format(stkcd,min_,idxcd))
+        print('error_{}_{}_{}'.format(stkcd,min_,idxcd))
 
     
 # Mult Calculate simple semi-beta  
-def Muti_Exec_SemiBeta():
+def Muti_Exec_SemiBeta(mult=True):
     
-    skip_dir1 = r'F:\SemiBeta\Betas'
-
-    folders_dict = {str(type_1):{type_:'' for type_ in ['1','5','15']} for type_1 in ['852','4000','905','300'] }
-    TB.create_folders(skip_dir1, folders_dict)
+    data_dir = os.getcwd()
+    skip_dir1 = data_dir + '\\data_sample\\SemiBeta\\Betas'
     
-    stock_base_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV.csv')
-    stock_base_data = stock_base_data[stock_base_data.Trdyr>=2005]
-    
+    stock_base_data = pd.read_csv(data_dir + '\\data_sample\\SAVIC_saveMV.csv')    
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
-
-    num_processes = 4
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
-        for k in [1]:
-            
-            hf_index_300 = TB.Fetch_Stock_HFdata_from_Resset(300, asset_type='index', minType=k) 
-            hf_index_905 = TB.Fetch_Stock_HFdata_from_Resset(905, asset_type='index', minType=k) 
-            # hf_index_852 = TB.Fetch_Stock_HFdata_from_Resset(852, asset_type='index', minType=k) 
-            hf_index_4000 = pd.read_csv(r'F:\HF_MIN\Resset\A_Index_{}.csv'.format(k))
-            index_dict = {300:hf_index_300, 4000:hf_index_4000, 905:hf_index_905}
-
-            for idxcd in [300,4000,905]:#
-                for stkcd in stock_base_data.Stkcd.unique().tolist():
-                    file_name = skip_dir1 + '\\{}\\{}\\{}.csv'.format(idxcd, k, stkcd)
-                    if file_name not in skip_list:
-                        pool.apply_async(Exec_SemiBeta, (index_dict, k,idxcd,stkcd))
     
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+    
+    if mult:
+
+        num_processes = 4
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for min_ in [5]:
+                
+                hf_index_300 = TB.Fetch_Stock_HFdata_from_Resset(300, asset_type='index', minType=min_) 
+                hf_index_4000 = pd.read_csv(data_dir + '\\data_sample\\index\\4000_{}.csv'.format(min_))
+                index_dict = {300:hf_index_300, 4000:hf_index_4000}
+    
+                for idxcd in [300,4000]:
+                    for stkcd in stock_base_data.Stkcd.unique().tolist():
+                        file_name = skip_dir1 + '\\{}\\{}\\{}.csv'.format(min_, idxcd, stkcd)
+                        if file_name not in skip_list:
+                            pool.apply_async(Exec_SemiBeta, (index_dict, min_, idxcd, stkcd))
+        
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+        
+    else:
+        for min_ in [5]:
+            
+            hf_index_300 = TB.Fetch_Stock_HFdata_from_Resset(300, asset_type='index', minType=min_) 
+            hf_index_4000 = pd.read_csv(data_dir + '\\data_sample\\index\\4000_{}.csv'.format(min_))
+            index_dict = {300:hf_index_300, 4000:hf_index_4000}
+
+            for idxcd in [300,4000]:
+                for stkcd in stock_base_data.Stkcd.unique().tolist():
+                    file_name = skip_dir1 + '\\{}\\{}\\{}.csv'.format(min_, idxcd, stkcd)
+                    if file_name not in skip_list:
+                        Exec_SemiBeta(index_dict, min_, idxcd, stkcd)
+  
         
 # Merging Calculate simple semi-beta results
-def Mrg_SemiBeta(index, kn):
+def Mrg_SemiBeta(index, min_):
     
-    D_Ba_path = r'F:\SemiBeta\Betas\{}\{}'.format(index, kn)
+    data_dir = os.getcwd()
+    
+    D_Ba_path = data_dir + '\\data_sample\\SemiBeta\\Betas\\{}\\{}'.format(min_,index)
     file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
     semibeta_list = []
 
@@ -172,32 +204,43 @@ def Mrg_SemiBeta(index, kn):
     semibeta_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     semibeta_df.dropna(inplace=True)
     
-    semibeta_df.to_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_{}.csv'.format(index, kn), index=False)
+    semibeta_df.to_csv(data_dir + '\\data_sample\\SemiBeta\\SemiBeta_{}_{}.csv'.format(min_,index), index=False)
+    
     
 # Mult Merging Calculate simple semi-beta results
-def Mult_Mrg_SemiBeta(idx_lst, kn_lst):
+def Mult_Mrg_SemiBeta(idx_lst, min_lst, mult=True):
     
-    num_processes = 8
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
+    if mult:
+    
+        num_processes = 8
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for index in idx_lst:
+                for min_ in min_lst:
+                    pool.apply_async(Mrg_SemiBeta, (index, min_))
+    
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+        
+    else:
         for index in idx_lst:
-            for kn in kn_lst:
-                pool.apply_async(Mrg_SemiBeta, (index, kn))
+            for min_ in min_lst:
+                Mrg_SemiBeta(index, min_)
 
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
 
 
 # Related sign jump that using RV to construct
 # From: Bollerslev, T., Li, S.Z., Zhao, B., 2020. Good Volatility, Bad Volatility, and the Cross Section of Stock Returns. J. Financ. Quant. Anal. 55, 751–781. https://doi.org/10.1017/S0022109019000097
 
 # Calculate RSJ base on RV  
-def Exec_RSJ_on_RV(stkcd, k):
+def Exec_RSJ_on_RV(stkcd, min_):
     print('start {}'.format(stkcd))
     
+    data_dir = os.getcwd()
+    
     VT = Volatility_Tool()
-    hf_stock_ = TB.Fetch_Stock_HFdata_from_Resset(stkcd, minType=k)
+    hf_stock_ = TB.Fetch_Stock_HFdata_from_Resset(stkcd, minType=min_)
     hf_stock_ = VT.Cpt_HF_LogReturn(hf_stock_,drop0=True).rename(columns={'log_close_diff':'ret_stk'})[['Trddt','time','ret_stk']]
     
     hf_data = VT.Cpt_DecomRV(hf_stock_, retTag='ret_stk')
@@ -208,37 +251,48 @@ def Exec_RSJ_on_RV(stkcd, k):
     data_day.replace([np.inf, -np.inf], np.nan, inplace=True)
     data_day.dropna(inplace=True)
 
-    data_day.to_csv(r'F:\RSJ_RV\{}\{}.csv'.format(k, stkcd), index=False)
-    print('Finshed RSJ_RV result calculation: {}_{}'.format(k, stkcd))
+    data_day.to_csv(data_dir + '\\data_sample\\RSJ_RV\\{}\\{}.csv'.format(min_, stkcd), index=False)
+    print('Finshed RSJ_RV result calculation: {}_{}'.format(min_, stkcd))
 
 
 # Mult Calculate RSJ base on RV  
-def Muti_Exec_RSJ_RV():
+def Muti_Exec_RSJ_RV(mult=True):
     
-    stock_base_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV.csv')
+    data_dir = os.getcwd()
+    
+    stock_base_df = pd.read_csv(data_dir + '\\data_sample\\SAVIC_saveMV.csv')    
     use_stkcd = stock_base_df.Stkcd.unique().tolist()
     stock_base_df = 0
     
-    skip_dir1 = r'F:\RSJ_RV\5'
+    skip_dir1 = data_dir + '\\data_sample\\RSJ_RV'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
 
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
-        for k in [5]:
+    if mult:
+        num_processes = 16
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for min_ in [5]:
+                for stkcd in use_stkcd:
+                    file_name = skip_dir1 + '\\{}.csv'.format(stkcd)
+                    if file_name not in skip_list:
+                        pool.apply_async(Exec_RSJ_on_RV, (stkcd, min_,))
+        
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+    else:
+        for min_ in [5]:
             for stkcd in use_stkcd:
                 file_name = skip_dir1 + '\\{}.csv'.format(stkcd)
                 if file_name not in skip_list:
-                    pool.apply_async(Exec_RSJ_on_RV, (stkcd, k,))
-    
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+                    Exec_RSJ_on_RV(stkcd, min_)
 
 
-def Mrg_RSJ_RV(kn):
+def Mrg_RSJ_RV(min_):
     
-    D_Ba_path = r'F:\RSJ_RV\{}'.format(kn)
+    data_dir = os.getcwd()
+    
+    D_Ba_path = data_dir + '\\data_sample\\RSJ_RV\\{}'.format(min_)
     file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
     RSJ_RV_list = []
 
@@ -255,10 +309,12 @@ def Mrg_RSJ_RV(kn):
     RSJ_RV_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     RSJ_RV_df.dropna(inplace=True)
 
-    RSJ_RV_df.to_csv(r'F:\RSJ_RV\RSJ_RV_{}.csv'.format(kn), index=False)
+    RSJ_RV_df.to_csv(data_dir + '\\data_sample\\RSJ_RV\\RSJ_RV_{}.csv'.format(min_), index=False)
 
 
 def Cpt_IVOL(df, Stkcd, window=20):
+    
+    data_dir = os.getcwd()
     
     def run_regression(df):
         X = sm.add_constant(df[['mkt', 'smb', 'vmg']])
@@ -270,39 +326,51 @@ def Cpt_IVOL(df, Stkcd, window=20):
     for i, df_ in enumerate(list(df.rolling(window))):
         if i >= window-1:
             df.loc[i,'IVOL'] = run_regression(df_)
-    df.to_csv(r'F:\IVOL\CH3\{}.csv'.format(Stkcd),index=False)
+    df.to_csv(data_dir + '\\data_sample\\IVOL\\CH3\\{}.csv'.format(Stkcd),index=False)
     print('{} IVOL finished'.format(Stkcd))
 
 
-def Mult_Cpt_IVOL():
-    stock_day_trade_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd'])
+def Mult_Cpt_IVOL(mult=True):
     
-    SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\CH3_daily.csv')
+    data_dir = os.getcwd()
+
+    stock_day_trade_data = pd.read_csv(data_dir + '\\data_sample\\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd'])
+    
+    SVIC_df = pd.read_csv(data_dir + '\\data_sample\\CH3_daily.csv')
     SVIC_df.columns = ['Trddt','rf','mkt','smb','vmg']
 
     IVOL_df = pd.merge(stock_day_trade_data, SVIC_df)
     IVOL_df = IVOL_df.sort_values(['Stkcd','Trddt']).reset_index(drop=True)
     IVOL_df['ex_ret'] = IVOL_df.Dretwd - IVOL_df.rf
             
-    skip_dir1 = r'F:\IVOL\CH3'
+    skip_dir1 = data_dir + '\\data_sample\\IVOL\\CH3'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
 
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
+    if mult:
+        num_processes = 16
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for Stkcd, df in IVOL_df.groupby('Stkcd'):
+                file_name = skip_dir1 + '\\{}.csv'.format(Stkcd)
+                if file_name not in skip_list:
+                    pool.apply_async(Cpt_IVOL, (df, Stkcd,))
+        
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+            
+    else:
         for Stkcd, df in IVOL_df.groupby('Stkcd'):
             file_name = skip_dir1 + '\\{}.csv'.format(Stkcd)
             if file_name not in skip_list:
-                pool.apply_async(Cpt_IVOL, (df, Stkcd,))
-    
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+                Cpt_IVOL(df, Stkcd)
               
         
 def Mrg_IVOL():
     
-    D_Ba_path = r'F:\IVOL\CH3'
+    data_dir = os.getcwd()
+    
+    D_Ba_path = data_dir + '\\data_sample\\IVOL\\CH3'
     file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
     semibeta_list = []
 
@@ -319,7 +387,7 @@ def Mrg_IVOL():
     semibeta_df['Trddt'] = semibeta_df.Trddt.astype(str)
     semibeta_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     semibeta_df.dropna(inplace=True)
-    semibeta_df.to_csv(r'F:\IVOL\IVOL.csv', index=False)
+    semibeta_df.to_csv(data_dir + '\\data_sample\\IVOL\\IVOL_CH3.csv', index=False)
 
 
 ###############################################################################
@@ -414,7 +482,7 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     
     # ABS_df = pd.read_csv(r'F:\SemiBeta\Other_measure\ABS_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     Square_df = pd.read_csv(r'F:\SemiBeta\Other_measure\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    SemiBeta = pd.read_csv(r'F:\SemiBeta\Beta_res\SemiBeta_{}_5.csv'.format(index_type))    
+    SemiBeta = pd.read_csv(r'F:\SemiBeta\SemiBeta_{}_5.csv'.format(index_type))    
     AC_df = pd.read_csv(r'F:\SemiBeta\Other_measure\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     BQ100_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     
@@ -527,7 +595,6 @@ def Cpt_BV_and_LogClsDiff(stkcd, hf_index, stock_base_data=None, n=48, min_=5, a
         print('erro_{}'.format(stkcd))
 
 
-@nb.njit
 def Cpt_betas(qq, dX, dZ, n=48, kn=25):
     
     idxI = np.arange(qq - kn + 1, qq + 1)  # Corrected index calculation
@@ -1157,38 +1224,83 @@ def Muti_Bet_on_BetaDispersion(min_, freq_lst, index, est_lst, rho=0.002, mult=F
     
 if __name__ == '__main__':
     
+    data_dir = os.getcwd()
+    
+    ###########################################################################
+    ## 1. Create basic dir to store the all kind of data
+    ###########################################################################
     # Create folders for sotring the intraday semi-beta variation estimating results
     folders_dict = {str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]}
-    TB.create_folders(r'F:\SemiBeta\Intraday_betas', folders_dict)
+    TB.create_folders(data_dir + '\\data_sample\\Intraday_betas', folders_dict)
     
     # Create folders for sotring the dispersion of intraday semi-beta variation estimating results
     folders_dict = {measure:{str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]} for measure in ['BQ100','AutoCorr','Square']}
-    TB.create_folders(r'F:\SemiBeta\Other_measure', folders_dict)
-    
-    # 1. Calculate intraday semi-beta variation and its dispersion
-    Cpt_All_Stock_DS([300,4000], [15,20,25,30,35,40], n=48, min_=5)
-    
-    # 2. Merge different stock's mean of intraday semi-beta varitions as well as its three different
-    Mult_Mrg_Intraday_Beta_res()
-    Mult_Mrg_Beta_measure(['AutoCorr'], [300,4000],[5],[15,20,25,30,35,40])
+    TB.create_folders(data_dir + '\\data_sample\\Other_measure', folders_dict)
 
-    # 3. Mult generate single sort results
-    Muti_exec_Ssort(['ew'],[300,4000], ['15','20','25','30'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], min_=5, mult=True)
+    # Create folders to store stocks' continue and discontinue beta
+    folders_dict = {str(year):{type_1:'' for type_1 in ['300']} for year in [5]}
+    TB.create_folders(data_dir + '\\data_sample\\ConDisconBeta', folders_dict)
 
-    # 4. Mult generate double sort results    
-    control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
-    for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
-        for weight_type in ['ew']:
-            Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
-            Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 4000, key_tag, weight_type, reverse=False)
+    # Create folders to store stocks' semi-betas
+    folders_dict = {str(year):{type_1:'' for type_1 in ['300','4000']} for year in [5]}
+    TB.create_folders(data_dir + '\\data_sample\\SemiBeta\\Betas', folders_dict)
+    
+    # Create folders to store stocks' relative sign jump that constructed by rv
+    folders_dict = {str(year):'' for year in [5]}
+    TB.create_folders(data_dir + '\\data_sample\\RSJ_RV', folders_dict)
+    
+    # Create folders to store stocks' IVOL
+    folders_dict = {str(year):'' for year in ['CH3','CH4','FF3','FF5']}
+    TB.create_folders(data_dir + '\\data_sample\\IVOL', folders_dict)
+
+
+    ###########################################################################
+    ## 2. Create all kind of basic data
+    ###########################################################################
+    
+    # # Create the continue and discontinue beta
+    # Muti_Exec_ConDisconBeta(idxcd=300, min_=5,mult=False)
+    # Mrg_ConDisconBeta(index=300, min_=5)
+    
+    # # Create the semi-betas
+    # Muti_Exec_SemiBeta(mult=False)
+    # Mult_Mrg_SemiBeta([300, 4000], [5], mult=False)   
+    
+    # # Create the RSJ
+    # Muti_Exec_RSJ_RV(mult=False)
+    # Mrg_RSJ_RV(5)
+    
+    # # Create IVOL that based on CH3 factor model
+    # Mult_Cpt_IVOL(mult=False)
+    # Mrg_IVOL()
+    
+    
+    
+
+    # # 1. Calculate intraday semi-beta variation and its dispersion
+    # Cpt_All_Stock_DS([300,4000], [15,20,25,30,35,40], n=48, min_=5)
+    
+    # # 2. Merge different stock's mean of intraday semi-beta varitions as well as its three different
+    # Mult_Mrg_Intraday_Beta_res()
+    # Mult_Mrg_Beta_measure(['AutoCorr'], [300,4000],[5],[15,20,25,30,35,40])
+
+    # # 3. Mult generate single sort results
+    # Muti_exec_Ssort(['ew'],[300,4000], ['15','20','25','30'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], min_=5, mult=True)
+
+    # # 4. Mult generate double sort results    
+    # control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
+    # for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
+    #     for weight_type in ['ew']:
+    #         Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
+    #         Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 4000, key_tag, weight_type, reverse=False)
 
     
-    # 5. Mult generate fama-macbeth regression results    
-    Muti_exec_FMR(5, ['W'], [15,20,25,30,35,40], index_lst=[300,4000], mult=True)    
+    # # 5. Mult generate fama-macbeth regression results    
+    # Muti_exec_FMR(5, ['W'], [15,20,25,30,35,40], index_lst=[300,4000], mult=True)    
     
-    # 6. Mult generate beting beta strategy results
-    Muti_Bet_on_BetaDispersion(5, ['W'], 300, [15,20,25,30,35,40])    
-    Muti_Bet_on_BetaDispersion(5, ['W'], 4000, [15,20,25,30,35,40])    
+    # # 6. Mult generate beting beta strategy results
+    # Muti_Bet_on_BetaDispersion(5, ['W'], 300, [15,20,25,30,35,40])    
+    # Muti_Bet_on_BetaDispersion(5, ['W'], 4000, [15,20,25,30,35,40])    
 
 
 
