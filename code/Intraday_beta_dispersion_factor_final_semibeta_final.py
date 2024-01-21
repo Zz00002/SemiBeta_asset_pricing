@@ -105,7 +105,7 @@ def Mrg_ConDisconBeta(index, min_=5):
     ConDisconBeta_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     ConDisconBeta_df.dropna(inplace=True)
     
-    ConDisconBeta_df.to_csv(data_dir + '\\data_sample\\{}\\ConDisconBeta_{}_{}.csv'.format(min_, index, min_), index=False)
+    ConDisconBeta_df.to_csv(data_dir + '\\data_sample\\ConDisconBeta\\ConDisconBeta_{}_{}.csv'.format(index, min_), index=False)
     print('finished ConDisconBeta_{}_{}.csv'.format(index, min_))
 
 
@@ -394,18 +394,19 @@ def Mrg_IVOL():
 ## Basic data construction
 ###############################################################################
 
-
 # Create the stocks daily basic data for further empirical study
 def Crt_Stock_base_df():
          
-    RSJ_RV = pd.read_csv(r'F:\RSJ_RV\RSJ_RV_5.csv')
-    ConDisconBeta = pd.read_csv(r'F:\ConDisconBeta\ConDisconBeta_300_5.csv')
-    BM_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\BM.csv')  
+    data_dir = os.getcwd()
+    
+    RSJ_RV = pd.read_csv(data_dir + '\\data_sample\\RSJ_RV\\RSJ_RV_5.csv')
+    ConDisconBeta = pd.read_csv(data_dir + '\\data_sample\\ConDisconBeta\\ConDisconBeta_300_5.csv')
+    BM_df = pd.read_csv(data_dir + '\\data_sample\\BM.csv')  
        
-    stock_day_trade_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd', 'Dsmvtll', 'Dnshrtrd', 'Adjprcnd','Clsprc'])
+    stock_day_trade_data = pd.read_csv(data_dir + '\\data_sample\\SAVIC_saveMV_day.csv', usecols=['Stkcd', 'Trddt', 'Dretwd', 'Dsmvtll', 'Dnshrtrd', 'Adjprcnd','Clsprc'])
     stock_day_trade_data = stock_day_trade_data.sort_values(['Stkcd','Trddt'])
     stock_day_trade_data['ME'] = stock_day_trade_data['Dsmvtll'].values
-    stock_day_trade_data['MOM'] = stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(252)/stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(21) - 1
+    # stock_day_trade_data['MOM'] = stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(252)/stock_day_trade_data.groupby('Stkcd').Adjprcnd.shift(21) - 1
     stock_day_trade_data['ILLIQ'] = abs(stock_day_trade_data['Dretwd'])/stock_day_trade_data['Dnshrtrd']/stock_day_trade_data['Clsprc']
     
     stock_day_trade_data['Weighted_Ret'] = stock_day_trade_data['ME'] * stock_day_trade_data['Dretwd']
@@ -445,14 +446,14 @@ def Crt_Stock_base_df():
     stock_day_trade_data = pd.merge(stock_day_trade_data,BM_df)
     stock_day_trade_data = stock_day_trade_data.drop('Trdmnt', axis=1)
     
-    SVIC_df = pd.read_csv(r'F:\数据集合\学术研究_股票数据\多因子模型收益率\CH3_daily.csv')
+    SVIC_df = pd.read_csv(data_dir + '\\data_sample\\CH3_daily.csv')
     SVIC_df.columns = ['Trddt','rf','mkt','smb','vmg']
     SVIC_df['Trddt'] = pd.to_datetime(SVIC_df.Trddt)
 
     stock_base_df = pd.merge(stock_day_trade_data, SVIC_df)
     stock_base_df['ex_ret'] = stock_base_df.Dretwd - stock_base_df.rf
     
-    IVOL = pd.read_csv(r'F:\IVOL\IVOL.csv')
+    IVOL = pd.read_csv(data_dir + '\\data_sample\\IVOL\\IVOL_CH3.csv')
     IVOL = IVOL[['Stkcd','Trddt','IVOL']]
     IVOL['Trddt'] = pd.to_datetime(IVOL['Trddt'])
     stock_base_df = pd.merge(stock_base_df, IVOL)
@@ -464,8 +465,8 @@ def Crt_Stock_base_df():
 # Create all interested variables and resample it into the final analyse frequency
 def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     
-            
-    DS_df = pd.read_csv(r'F:\SemiBeta\Intraday_betas\{0}\{1}_{2}.csv'.format(min_, index_type, est_intervel),index_col=0)
+    data_dir = os.getcwd()
+    DS_df = pd.read_csv(data_dir + '\\data_sample\\Intraday_betas\\{0}\\{1}_{2}.csv'.format(min_, index_type, est_intervel), index_col=0)
         
     DS_day_df = DS_df.unstack().reset_index().rename(columns={'level_0':'Stkcd',0:'Beta_abs_intra','level_1':'Trddt'})
     DS_day_df = DS_day_df.dropna()
@@ -480,11 +481,10 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
     DS_exec_df.index = DS_exec_df.reset_index()['Trddt'].apply(lambda x: x[:10])
     DS_exec_df = DS_exec_df.reset_index()
     
-    # ABS_df = pd.read_csv(r'F:\SemiBeta\Other_measure\ABS_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    Square_df = pd.read_csv(r'F:\SemiBeta\Other_measure\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    SemiBeta = pd.read_csv(r'F:\SemiBeta\SemiBeta_{}_5.csv'.format(index_type))    
-    AC_df = pd.read_csv(r'F:\SemiBeta\Other_measure\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
-    BQ100_df = pd.read_csv(r'F:\SemiBeta\Other_measure\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    Square_df = pd.read_csv(data_dir + '\\data_sample\\Other_measure\\Square_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    SemiBeta = pd.read_csv(data_dir + '\\data_sample\\SemiBeta\\SemiBeta_{}_{}.csv'.format(min_, index_type))    
+    AC_df = pd.read_csv(data_dir + '\\data_sample\\Other_measure\\AutoCorr_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
+    BQ100_df = pd.read_csv(data_dir + '\\data_sample\\Other_measure\\BQ100_{}_{}_{}.csv'.format(min_,index_type, est_intervel))
     
     DS_exec_df = pd.merge(DS_exec_df, Square_df)
     DS_exec_df = pd.merge(DS_exec_df, AC_df)
@@ -497,7 +497,7 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
                               'rf', 'mkt', 'vmg', 'smb',
                               'Beta_abs_intra','BQ100','AutoCorr','Square',
                               'beta_n','beta_mn','beta_p','beta_mp','beta',
-                              'BM','ME', 'MOM', 'ILLIQ', 'IVOL','CSK','CKT',
+                              'BM','ME', 'ILLIQ', 'IVOL','CSK','CKT',
                               'RSJ','conBeta', 'disconBeta']]
     DS_exec_df['AutoCorr'] = -DS_exec_df['AutoCorr']
 
@@ -530,6 +530,9 @@ def Crt_SortTable(stock_base_df, min_, index_type, est_intervel, freq='W'):
 
 # Do data cleaning as well as creating the basic data of semi-beta variation estimation
 def Cpt_BV_and_LogClsDiff(stkcd, hf_index, stock_base_data=None, n=48, min_=5, asset_type='stock'):
+    
+    data_dir = os.getcwd()
+
 
     try:
         hf_data_df = TB.Fetch_Stock_HFdata_from_Resset(stkcd, asset_type=asset_type, minType=min_)
@@ -591,7 +594,7 @@ def Cpt_BV_and_LogClsDiff(stkcd, hf_index, stock_base_data=None, n=48, min_=5, a
         return [(dz, dX),stkcd]
     
     except:
-        pd.DataFrame([stkcd]).to_csv('F:\SemiBeta\error\erro_{}.csv'.format(stkcd))
+        pd.DataFrame([stkcd]).to_csv(data_dir + '\\data_sample\\error\\erro_{}.csv'.format(stkcd))
         print('erro_{}'.format(stkcd))
 
 
@@ -615,6 +618,8 @@ def Cpt_IntraBeta_and_Measures(stkcd, hf_index, stock_base_data, kn, min_=5, n=4
     hf_index = hf_index.rename(columns={'close':'index_close','open':'index_open'})
     
     '''
+    
+    data_dir = os.getcwd()
 
     # for stkcd in all_stk_list:
     dZ, dX = Cpt_BV_and_LogClsDiff(stkcd, hf_index, stock_base_data, n=n, min_=min_)[0]
@@ -627,25 +632,26 @@ def Cpt_IntraBeta_and_Measures(stkcd, hf_index, stock_base_data, kn, min_=5, n=4
     index_name = hf_index['stkcd'].iloc[0]
     
     betas_df = pd.DataFrame(betas,columns=hf_index.Trddt.unique(),index=hf_index.time.unique()).T
-    betas_df.to_csv(r'F:\SemiBeta\Intraday_betas\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
+    betas_df.to_csv(data_dir + '\\data_sample\\Intraday_betas\\{}\\{}\\{}\\{}.csv'.format(min_,index_name,kn,stkcd))
 
     betas2 = pow(betas_df,2).mean(axis=1).rename(stkcd)
     bq_100 = (betas_df.max(axis=1) - betas_df.min(axis=1)).rename(stkcd)
     autocorr_1 = betas_df.T.apply(lambda x: x.autocorr(lag=1)).rename(stkcd)
 
-    betas2.to_csv(r'F:\SemiBeta\Other_measure\Square\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
-    bq_100.to_csv(r'F:\SemiBeta\Other_measure\BQ100\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
-    autocorr_1.to_csv(r'F:\SemiBeta\Other_measure\AutoCorr\{}\{}\{}\{}.csv'.format(min_,index_name,kn,stkcd))
+    betas2.to_csv(data_dir + '\\data_sample\\Other_measure\\Square\\{}\\{}\\{}\\{}.csv'.format(min_,index_name,kn,stkcd))
+    bq_100.to_csv(data_dir + '\\data_sample\\Other_measure\\BQ100\\{}\\{}\\{}\\{}.csv'.format(min_,index_name,kn,stkcd))
+    autocorr_1.to_csv(data_dir + '\\data_sample\\Other_measure\\AutoCorr\\{}\\{}\\{}\\{}.csv'.format(min_,index_name,kn,stkcd))
     
     print('Betas finished:{}_{}_{}'.format(stkcd,kn,index_name))
     
 
-
-def Cpt_All_Stock_DS(index_lst, kn_lst, n=48, min_=5):
+def Cpt_All_Stock_DS(index_lst, kn_lst, n=48, min_=5, mult=True):
+    
+    data_dir = os.getcwd()
     
     # get high frequency stock data
     hf_index_300 = TB.Fetch_Stock_HFdata_from_Resset(300, asset_type='index', minType=min_) 
-    hf_index_4000 = pd.read_csv(r'F:\HF_MIN\Resset\A_Index_{}.csv'.format(min_))
+    hf_index_4000 = pd.read_csv(data_dir + '\\data_sample\\index\\4000_{}.csv'.format(min_))
 
     hf_index_300 = hf_index_300[['stkcd','Trddt','time','open','close']]
     hf_index_300 = hf_index_300.rename(columns={'close':'index_close','open':'index_open'})
@@ -654,16 +660,34 @@ def Cpt_All_Stock_DS(index_lst, kn_lst, n=48, min_=5):
 
     index_dict = {300:hf_index_300, 4000:hf_index_4000}
     
-    stock_base_data = pd.read_csv(r'F:\数据集合\学术研究_股票数据\CSMAR\Combined_Data\SAVIC_saveMV_day.csv',usecols=['Stkcd','Trddt'])
+    stock_base_data = pd.read_csv(data_dir + '\\data_sample\\SAVIC_saveMV_day.csv', usecols=['Stkcd','Trddt'])
 
-    skip_dir1 = r'F:\SemiBeta\Other_measure\BQ100\{}'.format(min_)
+    skip_dir1 = data_dir + '\\data_sample\\Other_measure\\BQ100\\{}'.format(min_)
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
     
     print('gogogogogogogogogo')
-    num_processes = 16
-
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
+    
+    if mult:
+    
+        num_processes = 16
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for index_type in index_lst:
+                hf_index = index_dict[index_type]
+                stock_base_data_ = stock_base_data[stock_base_data.Trddt.isin(hf_index.Trddt)]
+                all_stk_list = stock_base_data_.Stkcd.unique().tolist()
+    
+                for kn in kn_lst:
+                    for stkcd in all_stk_list:
+                        file_name2 = data_dir + '\\data_sample\\Other_measure\\BQ100\\{}\\{}\\{}\\{}.csv'.format(min_,index_type,kn,stkcd)
+                        if file_name2 not in skip_list:
+                            pool.apply_async(Cpt_IntraBeta_and_Measures, (stkcd, hf_index, stock_base_data, kn, min_, n))
+    
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()   
+      
+    else:
         for index_type in index_lst:
             hf_index = index_dict[index_type]
             stock_base_data_ = stock_base_data[stock_base_data.Trddt.isin(hf_index.Trddt)]
@@ -671,22 +695,17 @@ def Cpt_All_Stock_DS(index_lst, kn_lst, n=48, min_=5):
 
             for kn in kn_lst:
                 for stkcd in all_stk_list:
-                    file_name2 = r'F:\SemiBeta\Other_measure\BQ100\{}\{}\{}\{}.csv'.format(min_,index_type,kn,stkcd)
+                    file_name2 = data_dir + '\\data_sample\\Other_measure\\BQ100\\{}\\{}\\{}\\{}.csv'.format(min_,index_type,kn,stkcd)
                     if file_name2 not in skip_list:
-                        pool.apply_async(Cpt_IntraBeta_and_Measures, (stkcd, hf_index, stock_base_data, kn, min_, n))
-
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()   
-      
-        
+                        Cpt_IntraBeta_and_Measures(stkcd, hf_index, stock_base_data, kn, min_, n)
       
   
 def Mrg_Intraday_Beta(min_, index_type, est_intervel):
     
+    data_dir = os.getcwd()
     
     print('Begin merging intraday data: {}_{}_{}'.format(min_,index_type,est_intervel))
-    beta_dispersion_dir = r'F:\SemiBeta\Intraday_betas\{0}\{1}\{2}'.format(min_,index_type,est_intervel)            
+    beta_dispersion_dir = data_dir + '\\data_sample\\Intraday_betas\\{0}\\{1}\\{2}'.format(min_,index_type,est_intervel)            
     file_list = TB.Tag_FilePath_FromDir(beta_dispersion_dir)
     DS_df = pd.DataFrame()
     for stock in file_list:
@@ -706,31 +725,40 @@ def Mrg_Intraday_Beta(min_, index_type, est_intervel):
         except:
             pass
     
-    DS_df.to_csv(r'F:\SemiBeta\Intraday_betas\{0}\{1}_{2}.csv'.format(min_,index_type,est_intervel))
+    DS_df.to_csv(data_dir + '\\data_sample\\Intraday_betas\\{0}\\{1}_{2}.csv'.format(min_,index_type,est_intervel))
     print('Finshed merging intraday data: {}_{}_{}'.format(min_,index_type,est_intervel))
 
 
-def Mult_Mrg_Intraday_Beta_res():
+def Mult_Mrg_Intraday_Beta_res(mult=True):
     
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
+    if mult:
+    
+        num_processes = 16
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for min_ in ['5']:
+                for index_type in ['300','4000']:
+                    # for est_intervel in list(range(20,45,5)): 
+                    for est_intervel in [15,20,25,30,35,40]: 
+    
+                        pool.apply_async(Mrg_Intraday_Beta, (min_, index_type, est_intervel,))
+    
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+            
+    else:
         for min_ in ['5']:
-            # for index_type in ['300','500','1000']:
-            for index_type in ['4000']:
-                # for est_intervel in list(range(20,45,5)): 
-                for est_intervel in [5,15,20,30,35,40]: 
-
-                    pool.apply_async(Mrg_Intraday_Beta, (min_, index_type, est_intervel,))
-
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
+            for index_type in ['300','4000']:
+                for est_intervel in [15,20,25,30,35,40]: 
+                    Mrg_Intraday_Beta(min_, index_type, est_intervel,)
 
 
 def Mrg_Beta_measure(D_type, index, min_, est_intervel):
     
-    D_Ba_path = r'F:\SemiBeta\Other_measure\{}\{}\{}\{}'.format(D_type, min_, index, est_intervel)
+    data_dir = os.getcwd()
+    
+    D_Ba_path = data_dir + '\\data_sample\\Other_measure\\{}\\{}\\{}\\{}'.format(D_type, min_, index, est_intervel)
     file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
     measure_df_list = []
 
@@ -748,89 +776,34 @@ def Mrg_Beta_measure(D_type, index, min_, est_intervel):
     Measure_df.replace([np.inf, -np.inf], np.nan, inplace=True)
     Measure_df.dropna(inplace=True)
     
-    Measure_df.to_csv(r'F:\SemiBeta\Other_measure\{}_{}_{}_{}.csv'.format(D_type, min_, index, est_intervel), index=False)
+    Measure_df.to_csv(data_dir + '\\data_sample\\Other_measure\\{}_{}_{}_{}.csv'.format(D_type, min_, index, est_intervel), index=False)
 
 
-def Mult_Mrg_Beta_measure(D_type_lst, index_lst, min__lst, est_intervel_lst):
+def Mult_Mrg_Beta_measure(D_type_lst, index_lst, min__lst, est_intervel_lst, mult=True):
     
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
+    if mult:
+        
+        num_processes = 16
+        # Create a Pool of processes
+        with Pool(num_processes) as pool:
+            for D_type in D_type_lst:
+                for min_ in min__lst:
+                    for index_type in index_lst:
+                        # for est_intervel in list(range(20,45,5)): 
+                        for est_intervel in est_intervel_lst: 
+        
+                            pool.apply_async(Mrg_Beta_measure, (D_type, index_type, min_, est_intervel,))
+        
+            # Close the pool and wait for all processes to finish
+            pool.close()
+            pool.join()
+            
+    else:
         for D_type in D_type_lst:
             for min_ in min__lst:
                 for index_type in index_lst:
-                    # for est_intervel in list(range(20,45,5)): 
                     for est_intervel in est_intervel_lst: 
-    
-                        pool.apply_async(Mrg_Beta_measure, (D_type, index_type, min_, est_intervel,))
-    
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
-        
-
-def Merge_BQ_and_AutoCorr(index,kn):
-    
-    D_Ba_path = r'F:\Intrady Beta Pattern\Betasabs_5\{}\{}'.format(index,kn)
-    file_list = TB.Tag_FilePath_FromDir(D_Ba_path)
-    
-    bq100_list = []
-    bq90_list = []
-    bq75_list = []
-    auto_corr_list1 = []
-
-    for file in file_list:
-        try:
-            print(file)
-            stkcd = file.split('\\')[-1].split('.')[0]
-            betas_df = pd.read_csv(file, index_col=0)
-            
-            bq_100 = (betas_df.max(axis=1) - betas_df.min(axis=1)).to_frame().reset_index().rename(columns={'index':'Trddt',0:'bq100'})
-            bq_100['Stkcd'] = stkcd
-            bq_90 = (betas_df.quantile(0.9, axis=1) - betas_df.quantile(0.1, axis=1)).to_frame().reset_index().rename(columns={'index':'Trddt',0:'bq90'})
-            bq_90['Stkcd'] = stkcd
-            bq_75 = (betas_df.quantile(0.75, axis=1) - betas_df.quantile(0.25, axis=1)).to_frame().reset_index().rename(columns={'index':'Trddt',0:'bq75'})
-            bq_75['Stkcd'] = stkcd
-
-            autocorr_1 = betas_df.T.apply(lambda x: x.autocorr(lag=1)).to_frame().reset_index().rename(columns={'index':'Trddt',0:'AC1'})
-            autocorr_1['Stkcd'] = stkcd
-            
-            
-            bq100_list.append(bq_100)
-            bq90_list.append(bq_90)
-            bq75_list.append(bq_75)
-            auto_corr_list1.append(autocorr_1)
-
-        except:
-            print('error: {}'.format(file))
-            pass
-    
-    measure_dict = {'BQ100':bq100_list,
-                    'BQ90':bq90_list,
-                    'BQ75':bq75_list,
-                    'AC1':auto_corr_list1}
-    
-    for measure,measure_list in measure_dict.items():
-        measure_df = pd.concat(measure_list)
-        measure_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        measure_df.dropna(inplace=True)
-        measure_df.to_csv(r'F:\SemiBeta\Other_measure\{}_{}_{}.csv'.format(measure, index, kn), index=False)
-    
-
-def Mult_Merge_BQ_and_AutoCorr():
-    
-    num_processes = 16
-    # Create a Pool of processes
-    with Pool(num_processes) as pool:
-        for index_type in ['300']:
-            for est_intervel in [15,20,25,30,35,40]: 
-                pool.apply_async(Merge_BQ_and_AutoCorr, (index_type, est_intervel,))
-
-        # Close the pool and wait for all processes to finish
-        pool.close()
-        pool.join()
-
-
+                        Mrg_Beta_measure(D_type, index_type, min_, est_intervel)
 
 
 
@@ -838,33 +811,32 @@ def Mult_Merge_BQ_and_AutoCorr():
 ## Do double and single sort
 ############################################################################### 
     
-def Exec_TD_SSort(SSort_exec_df, min_, index_type, est_window, key, freq='W', weight_type='vw'):
+def Exec_TD_SSort(SSort_exec_df, min_, index_type, est_window, key, freq='W', weight_type='vw',groupsNum=5):
     
+    data_dir = os.getcwd()
     APT = AssetPricingTool()
     
     Factors = SSort_exec_df[['Trddt','mkt', 'vmg', 'smb']].set_index('Trddt').drop_duplicates()
     if weight_type.lower() == 'vw':
-        SSort_res = APT.Rec_SingleSortRes(avgTag='retShit',sortTag=key,groupsNum=5,Factors=Factors, timeTag='Trddt',
+        SSort_res = APT.Rec_SingleSortRes(avgTag='retShit',sortTag=key,groupsNum=groupsNum,Factors=Factors, timeTag='Trddt',
                                           use_factors=['mkt', 'vmg', 'smb'],weightTag='ME',df=SSort_exec_df.copy())
     else:
-        SSort_res = APT.Rec_SingleSortRes(avgTag='retShit',sortTag=key,groupsNum=5,Factors=Factors, timeTag='Trddt',
+        SSort_res = APT.Rec_SingleSortRes(avgTag='retShit',sortTag=key,groupsNum=groupsNum,Factors=Factors, timeTag='Trddt',
                                           use_factors=['mkt', 'vmg', 'smb'],df=SSort_exec_df.copy())
     
-    SSort_res.to_csv(r'F:\SemiBeta\Sorted_res\Ssort\{}\{}\{}\Ssort_{}_{}_{}.csv'.format(weight_type, index_type, est_window, freq, min_,key))
+    SSort_res.to_csv(data_dir + '\\data_sample\\Sorted_res\\Ssort\\{}\\{}\\{}\\Ssort_{}_{}_{}.csv'.format(weight_type, index_type, est_window, freq, min_,key))
 
     print('Finshed Single sort result calculation: {}_{}_{}_{}_{}'.format(freq, min_, index_type, weight_type, key))
-
     
     
-def Muti_exec_Ssort(weight_lst, index_lst, est_lst, D_lst, min_=5, freq='W', mult=False):
+def Muti_exec_Ssort(weight_lst, index_lst, est_lst, D_lst, min_=5, freq='W', mult=True,groupsNum=5):
     
-    skip_dir1 = r'F:\SemiBeta\Sorted_res\Ssort'
+    data_dir = os.getcwd()
+    skip_dir1 = data_dir + '\\data_sample\\Sorted_res\\Ssort'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
         
     print('Exec stock_base_df')
     stock_base_df = Crt_Stock_base_df()
-
-    # SSort_exec_df = pd.read_csv(r'F:\SemiBeta\Basic_data\{}_{}_{}.csv'.format(5, 300, 'W'))
 
     if mult:
         num_processes = 4
@@ -878,17 +850,24 @@ def Muti_exec_Ssort(weight_lst, index_lst, est_lst, D_lst, min_=5, freq='W', mul
                         for key_tag in D_lst:
                             file_name = skip_dir1 + '\\{}\\{}\\{}\\Ssort_{}_{}_{}.csv'.format(weight_type,index_type,est_window, freq, min_, key_tag)
                             if file_name not in skip_list:
-                                pool.apply_async(Exec_TD_SSort, (SSort_exec_df, min_, index_type, est_window,key_tag,
-                                                                     freq, weight_type))
+                                pool.apply_async(Exec_TD_SSort, (SSort_exec_df, min_, index_type, est_window,key_tag,freq, weight_type,groupsNum))
 
             # Close the pool and wait for all processes to finish
             pool.close()
             pool.join()
+            
+    else:
+        for index_type in index_lst:
+            print('Exec SSort_exec_df')
+            for est_window in est_lst:
+                SSort_exec_df = Crt_SortTable(stock_base_df, min_, index_type, est_window, freq=freq) 
+                for weight_type in weight_lst:
+                    for key_tag in D_lst:
+                        file_name = skip_dir1 + '\\{}\\{}\\{}\\Ssort_{}_{}_{}.csv'.format(weight_type,index_type,est_window, freq, min_, key_tag)
+                        if file_name not in skip_list:
+                            Exec_TD_SSort(SSort_exec_df, min_, index_type, est_window,key_tag,freq, weight_type,groupsNum)
 
 
-
-    
-  
 def Exec_TD_Dsort(DS_exec_df,
                   min_,
                   index_type, 
@@ -897,47 +876,49 @@ def Exec_TD_Dsort(DS_exec_df,
                   est_window,
                   freq='W',
                   weight_type='vw',
-                  reverse=False):
+                  reverse=False,
+                  groupsNum1=5,
+                  groupsNum2=5):
     
-    # ME MOM REV IVOL ILLIQ MAX MIN
-
+    data_dir = os.getcwd()
     APT = AssetPricingTool()
     
     Factors = DS_exec_df[['Trddt','mkt', 'vmg', 'smb']].set_index('Trddt').drop_duplicates()
     if not reverse:
         if weight_type.lower() == 'vw':
-            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=con_tag, sortTag_key=key_tag, groupsNum1=5, groupsNum2=5, 
+            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=con_tag, sortTag_key=key_tag, groupsNum1=groupsNum1, groupsNum2=groupsNum2, 
                                               SortMethod='dependent', Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
                                               timeTag='Trddt', df=DS_exec_df.copy(), weightTag='ME')
         else:
-            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=con_tag, sortTag_key=key_tag, groupsNum1=5, groupsNum2=5, 
+            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=con_tag, sortTag_key=key_tag, groupsNum1=groupsNum1, groupsNum2=groupsNum2, 
                                               SortMethod='dependent', Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
                                               timeTag='Trddt', df=DS_exec_df.copy())
         
-        DSort_res.to_csv(r'F:\SemiBeta\Sorted_res\Dsort\{}\{}\{}\{}\Dsort_{}_{}_{}_{}_{}.csv'.format(weight_type, index_type,est_window,reverse, freq, min_,  
+        DSort_res.to_csv(data_dir + '\\data_sample\\Sorted_res\\Dsort\\{}\\{}\\{}\\{}\\Dsort_{}_{}_{}_{}_{}.csv'.format(weight_type, index_type,est_window,reverse, freq, min_,  
                                                                                            weight_type, con_tag, key_tag))
         
     else:
         
         if weight_type.lower() == 'vw':
-            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=key_tag, sortTag_key=con_tag, groupsNum1=5, groupsNum2=5, 
+            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=key_tag, sortTag_key=con_tag, groupsNum1=groupsNum1, groupsNum2=groupsNum2, 
                                               SortMethod='dependent', Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
                                               timeTag='Trddt', df=DS_exec_df.copy(), weightTag='ME')
         else:
-            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=key_tag, sortTag_key=con_tag, groupsNum1=5, groupsNum2=5, 
+            DSort_res = APT.Rec_DoubleSortRes(avgTag='retShit', sortTag=key_tag, sortTag_key=con_tag, groupsNum1=groupsNum1, groupsNum2=groupsNum2, 
                                               SortMethod='dependent', Factors=Factors, use_factors=['mkt', 'vmg', 'smb'],
                                               timeTag='Trddt', df=DS_exec_df.copy())
         
-        DSort_res.to_csv(r'F:\SemiBeta\Sorted_res\Dsort\{}\{}\{}\{}\Dsort_{}_{}_{}_{}_{}.csv'.format(weight_type, index_type,est_window,reverse, freq, min_,  
+        DSort_res.to_csv(data_dir + '\\SemiBeta\\Sorted_res\\Dsort\\{}\\{}\\{}\\{}\\Dsort_{}_{}_{}_{}_{}.csv'.format(weight_type, index_type,est_window,reverse, freq, min_,  
                                                                                            weight_type, con_tag, key_tag))
 
     print('Finshed Single sort result calculation: Dsort_{}_{}_{}_{}_{}_{}_{}.csv'.format(freq, min_,  index_type, 
                                                                                        weight_type, con_tag, key_tag,reverse))
      
     
-def Muti_Exec_TD_Dsort(weight_lst, key_lst, index_lst, con_lst, est_lst, min_=5, freq='W',mult=False,reverse=False):
-            
-    skip_dir1 = r'F:\SemiBeta\Sorted_res\Dsort'
+def Muti_Exec_TD_Dsort(weight_lst, key_lst, index_lst, con_lst, est_lst, min_=5, freq='W', mult=False, reverse=False, groupsNum1=5, groupsNum2=5):
+       
+    data_dir = os.getcwd()     
+    skip_dir1 = data_dir + '\\SemiBeta\\Sorted_res\\Dsort'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
     
     print('Exec stock_base_df')
@@ -952,7 +933,7 @@ def Muti_Exec_TD_Dsort(weight_lst, key_lst, index_lst, con_lst, est_lst, min_=5,
             for index_type in index_lst:
                 print('Exec SSort_exec_df')
                 for est_window in est_lst:
-                    SSort_exec_df = Crt_SortTable(stock_base_df, min_, 5, index_type, est_window, freq=freq) 
+                    SSort_exec_df = Crt_SortTable(stock_base_df, min_, index_type, est_window, freq=freq) 
                     for weight_type in weight_lst:
                         for key_tag in key_lst:
                             for con_tag in con_lst:
@@ -960,7 +941,7 @@ def Muti_Exec_TD_Dsort(weight_lst, key_lst, index_lst, con_lst, est_lst, min_=5,
                                                                                                        weight_type, con_tag, key_tag)
                                 if file_name not in skip_list:
                                     pool.apply_async(Exec_TD_Dsort, (SSort_exec_df, min_, index_type, key_tag,
-                                                                      con_tag, est_window, freq, weight_type, reverse,))
+                                                                      con_tag, est_window, freq, weight_type, reverse,groupsNum1,groupsNum2))
     
             # Close the pool and wait for all processes to finish
             pool.close()
@@ -968,7 +949,7 @@ def Muti_Exec_TD_Dsort(weight_lst, key_lst, index_lst, con_lst, est_lst, min_=5,
     else:
         for index_type in index_lst:
             for est_window in est_lst:
-                SSort_exec_df = Crt_SortTable(stock_base_df, min_, 5, index_type, est_window, freq=freq) 
+                SSort_exec_df = Crt_SortTable(stock_base_df, min_, index_type, est_window, freq=freq) 
 
                 for weight_type in weight_lst:
                     for key_tag in key_lst:
@@ -977,12 +958,13 @@ def Muti_Exec_TD_Dsort(weight_lst, key_lst, index_lst, con_lst, est_lst, min_=5,
                                                                                                    weight_type, con_tag, key_tag)
                             if file_name not in skip_list:
                                 Exec_TD_Dsort(SSort_exec_df, min_, index_type, key_tag,
-                                                                  con_tag, est_window, freq, weight_type, reverse)
+                                                                  con_tag, est_window, freq, weight_type, reverse,groupsNum1,groupsNum2)
     
 
-
 def Mrg_Dsort_res_(freq, min_, control_list, est_lst, index_type, key_tag, weight_type, reverse=False):
-    res_dir = r'F:\SemiBeta\Sorted_res\Dsort'
+    
+    data_dir = os.getcwd()     
+    res_dir = data_dir + '\\data_sample\\Sorted_res\\Dsort'
     
     for est_intervel in est_lst:
         Dsort_res = pd.DataFrame()
@@ -1022,20 +1004,18 @@ def Mrg_Dsort_res_(freq, min_, control_list, est_lst, index_type, key_tag, weigh
                         
             Dsort_res = pd.concat([Dsort_res, df],axis=1)
             
-        Dsort_res.to_csv('F:\SemiBeta\Sorted_res\Merge_Dsort_{}_{}_{}_{}_{}_{}_{}.csv' \
+        Dsort_res.to_csv(data_dir + '\\data_sample\\Sorted_res\\Merge_Dsort_{}_{}_{}_{}_{}_{}_{}.csv' \
                          .format(freq, min_, index_type, est_intervel, weight_type, key_tag,reverse))
-
 
 
 def Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index_type, min_=5, est_intervel=25, freq='W'):
     
+    data_dir = os.getcwd()
     APT = AssetPricingTool()
         
     yTag = 'retShit'    
-    # DS_exec_df = Crt_TD_SortTable(D_type, min_, index_type, est_intervel, stock_base_df, freq) 
-    #  , 'beta','RSJ', 'conBeta', 'disconBeta' 'RSJ','beta', 'beta_n','disconBeta' 'Beta_abs',
     key_xTag_lst = key_x_lst + ['beta','Beta_neg']
-    con_xTag_lst = ['RSJ', 'disconBeta', 'REV', 'BM', 'ME', 'MOM', 'ILLIQ', 
+    con_xTag_lst = ['RSJ', 'disconBeta', 'REV', 'BM', 'ME', 'ILLIQ', 
                     'IVOL', 'MAX', 'MIN','CSK','CKT']
     
     reg_lst = []
@@ -1064,7 +1044,7 @@ def Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index_type, min_=5, est_inter
     data_df = data_df[[yTag] + key_xTag_lst + con_xTag_lst]
     
     regres = APT.FamaMacBeth_summary(data_df, reg_lst, key_xTag_lst + con_xTag_lst).astype(str)
-    regres.to_csv(r'F:\SemiBeta\FMreg_res\{}\{}\{}\FMR_{}.csv'.format(min_, index_type, est_intervel, key_x_lst))
+    regres.to_csv(data_dir + '\\data_sample\\FMreg_res\\{}\\{}\\{}\\FMR_{}.csv'.format(min_, index_type, est_intervel, key_x_lst))
         
     print('Finshed Fama-Macbech regression result calculation: {}_{}_{}_{}'.format(key_x_lst, min_, index_type, est_intervel))
     return regres
@@ -1072,9 +1052,10 @@ def Exec_FamaMacbeth_Reg(SSort_exec_df, key_x_lst, index_type, min_=5, est_inter
 
 def Muti_exec_FMR(min_, freq_lst, est_lst, index_lst=[300,4000], mult=True):
     
+    data_dir = os.getcwd()
     stock_base_df = Crt_Stock_base_df()
 
-    skip_dir1 = r'F:\SemiBeta\FMreg_res'
+    skip_dir1 = data_dir + '\\data_sample\\FMreg_res'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
     
     if mult:
@@ -1096,10 +1077,25 @@ def Muti_exec_FMR(min_, freq_lst, est_lst, index_lst=[300,4000], mult=True):
                 # Close the pool and wait for all processes to finish
                 pool.close()
                 pool.join()
+                
+    else:
+        for freq in freq_lst:
+            for est_intervel in est_lst:
+                for index in index_lst: 
+                    SSort_exec_df = Crt_SortTable(stock_base_df, min_, index, est_intervel, freq=freq) 
+                    print('finished SSort_exec_df_{}'.format(index))
+                    for key_x_lst in [['Beta_abs_intra','Square'],
+                                      ['Beta_abs_intra','AutoCorr'],
+                                      ['Beta_abs_intra','BQ100']]:
+                        file_name = skip_dir1 + '\\{}\\{}\\{}\\FMR_{}.csv'.format(min_, index, est_intervel, key_x_lst)
+                        if file_name not in skip_list:
+                            Exec_FamaMacbeth_Reg(SSort_exec_df,  key_x_lst, index, min_, est_intervel, freq)
+            
             
 
-def Bet_on_BetaDispersion(SSort_exec_df, min_, index_type, freq, rho=0.002):    
+def Bet_on_BetaDispersion(SSort_exec_df, min_, index_type, est_intervel, freq, rho=0.002,groupsNum=5):    
     
+    data_dir = os.getcwd()
     APT = AssetPricingTool()
     sortTag_list = ['beta','Beta_neg','Beta_abs_intra', 'Square', 'BQ100', 'AutoCorr']
     # 'RSJ','beta','Beta_neg','disconBeta','Beta_abs','DS'
@@ -1115,7 +1111,7 @@ def Bet_on_BetaDispersion(SSort_exec_df, min_, index_type, freq, rho=0.002):
         
         sortTag = sortTag_list[j]
         Factors = SSort_exec_df[['Trddt','mkt', 'vmg', 'smb']].set_index('Trddt').drop_duplicates()
-        Sort_table = APT.Exec_SingleSort(avgTag='retShit', sortTag=sortTag, groupsNum=5, timeTag='Trddt', df=SSort_exec_df.copy())[1]
+        Sort_table = APT.Exec_SingleSort(avgTag='retShit', sortTag=sortTag, groupsNum=groupsNum, timeTag='Trddt', df=SSort_exec_df.copy())[1]
         
         Sort_table['retShit'] = Sort_table['retShit']/100
         
@@ -1129,7 +1125,7 @@ def Bet_on_BetaDispersion(SSort_exec_df, min_, index_type, freq, rho=0.002):
         Sort_table = pd.merge(Sort_table, weight,left_on=['Trddt','Group'], right_index=True).copy()
         Sort_table['ret_'] = Sort_table['retShit'] * Sort_table['weight']
         
-        Top_group = Sort_table[Sort_table.Group=='{}_G05'.format(sortTag)]
+        Top_group = Sort_table[Sort_table.Group=='{}_G0{}'.format(sortTag,groupsNum)]
         Bot_group = Sort_table[Sort_table.Group=='{}_G01'.format(sortTag)]
         Top_group = Top_group.sort_values(['Stkcd','Trddt'])
         Bot_group = Bot_group.sort_values(['Stkcd','Trddt'])
@@ -1178,23 +1174,24 @@ def Bet_on_BetaDispersion(SSort_exec_df, min_, index_type, freq, rho=0.002):
                          'beta_mkt', '', 'beta_vmg', '', 
                          'beta_smb', '', 
                          'Alpha', '', '','Adj R2']
-    Stragte_res.astype(float).round(4).to_csv(r'F:\SemiBeta\Strategy_table_{}_{}_{}_{}.csv' \
-        .format(min_, index_type, freq,  int(rho*1000)))
+    Stragte_res.astype(float).round(4).to_csv(data_dir + '\\data_sample\\Strategy\\Strategy_table_{}_{}_{}_{}_{}.csv' \
+        .format(min_, index_type, est_intervel, freq,  int(rho*1000)))
     plt.xlabel('Trading Date')
     plt.ylabel('Net Strategy Value')
     plt.title('Net value of betting on different beta')
     plt.legend()
     plt.grid()
-    plt.xticks(range(0,len(HML_cumpord.index),50),HML_cumpord.index[range(0,len(HML_cumpord.index),50)],rotation=45)
-    plt.savefig(r'F:\SemiBeta\Strategy_plot_{}_{}_{}_{}.png' \
-       .format(min_, index_type, freq, int(rho*1000)))
+    # plt.xticks(range(0,len(HML_cumpord.index),10),HML_cumpord.index[range(0,len(HML_cumpord.index),10)],rotation=45)
+    plt.savefig(data_dir + '\\data_sample\\Strategy\\Strategy_plot_{}_{}_{}_{}_{}.png' \
+       .format(min_, index_type, est_intervel, freq, int(rho*1000)))
                 
     
-def Muti_Bet_on_BetaDispersion(min_, freq_lst, index, est_lst, rho=0.002, mult=False):
+def Muti_Bet_on_BetaDispersion(min_, freq_lst, index, est_lst, rho=0.002, groupsNum=5, mult=False):
         
-    skip_dir1 = r'F:\Intrady Beta Pattern\Betting on Strategy res\Strategy_table'
+    data_dir = os.getcwd()
+    skip_dir1 = data_dir + '\\data_sample\\Strategy'
     skip_list = TB.Tag_FilePath_FromDir(skip_dir1)
-    stock_base_df = Crt_Stock_base_df(index)
+    stock_base_df = Crt_Stock_base_df()
 
     if mult:
         num_processes = 2
@@ -1206,7 +1203,7 @@ def Muti_Bet_on_BetaDispersion(min_, freq_lst, index, est_lst, rho=0.002, mult=F
                     file_name = skip_dir1 + '\\Strategy_table_{}_{}_{}_{}_{}.csv' \
                         .format(min_, index, est_intervel, freq, int(rho*1000))
                     if file_name not in skip_list:
-                        pool.apply_async(Bet_on_BetaDispersion, (SSort_exec_df, min_, index, freq, rho, ))
+                        pool.apply_async(Bet_on_BetaDispersion, (SSort_exec_df, min_, index, est_intervel, freq, rho, groupsNum,))
 
         # Close the pool and wait for all processes to finish
         pool.close()
@@ -1219,7 +1216,7 @@ def Muti_Bet_on_BetaDispersion(min_, freq_lst, index, est_lst, rho=0.002, mult=F
                 file_name = skip_dir1 + '\\Strategy_table_{}_{}_{}_{}_{}.csv' \
                     .format(min_, index, est_intervel, freq, int(rho*1000))
                 if file_name not in skip_list:
-                    Bet_on_BetaDispersion(SSort_exec_df, min_, index, freq, rho, )
+                    Bet_on_BetaDispersion(SSort_exec_df, min_, index, est_intervel, freq, rho, groupsNum)
     
     
 if __name__ == '__main__':
@@ -1230,11 +1227,11 @@ if __name__ == '__main__':
     ## 1. Create basic dir to store the all kind of data
     ###########################################################################
     # Create folders for sotring the intraday semi-beta variation estimating results
-    folders_dict = {str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]}
+    folders_dict = {str(year):{type_1:{type_:'' for type_ in ['15','20','25','30']} for type_1 in ['4000','300'] } for year in [5]}
     TB.create_folders(data_dir + '\\data_sample\\Intraday_betas', folders_dict)
     
     # Create folders for sotring the dispersion of intraday semi-beta variation estimating results
-    folders_dict = {measure:{str(year):{type_1:{type_:'' for type_ in ['15','20','25','30','35','40']} for type_1 in ['4000','300'] } for year in [5]} for measure in ['BQ100','AutoCorr','Square']}
+    folders_dict = {measure:{str(year):{type_1:{type_:'' for type_ in ['15','20','25','30']} for type_1 in ['4000','300'] } for year in [5]} for measure in ['BQ100','AutoCorr','Square']}
     TB.create_folders(data_dir + '\\data_sample\\Other_measure', folders_dict)
 
     # Create folders to store stocks' continue and discontinue beta
@@ -1252,55 +1249,84 @@ if __name__ == '__main__':
     # Create folders to store stocks' IVOL
     folders_dict = {str(year):'' for year in ['CH3','CH4','FF3','FF5']}
     TB.create_folders(data_dir + '\\data_sample\\IVOL', folders_dict)
+    
+    # Create folders to store the error stock code while calculating the intraday semi-beta variation
+    folders_dict = {'':''}
+    TB.create_folders(data_dir + '\\data_sample\\error', folders_dict)
+    
+    # Create folders to store the error stock code while calculating the intraday semi-beta variation
+    folders_dict = {'':''}
+    TB.create_folders(data_dir + '\\data_sample\\error', folders_dict)
+    
+    # Create folders to store the single sort results
+    folders_dict = {weight:{index:{str(est):'' for est in [15,20,25,30]} for index in ['300','4000']} for weight in ['vw','ew']}
+    TB.create_folders(data_dir + '\\data_sample\\Sorted_res\\Ssort', folders_dict)
+
+    # Create folders to store the double sort results
+    folders_dict = {weight:{index:{str(est):{reverse:'' for reverse in ['True','False']} for est in [15,20,25,30]} for index in ['300','4000']} for weight in ['vw','ew']}
+    TB.create_folders(data_dir + '\\data_sample\\Sorted_res\\Dsort', folders_dict)
+
+    # Create folders to store the fama-macbeth regression results
+    folders_dict = {str(min_):{index:{str(est):'' for est in [15,20,30,35]} for index in ['300','4000']} for min_ in [5]}
+    TB.create_folders(data_dir + '\\data_sample\\FMreg_res', folders_dict)
+
+    # Create folders to store the betting beta results
+    folders_dict = {'':''}
+    TB.create_folders(data_dir + '\\data_sample\\Strategy', folders_dict)
 
 
     ###########################################################################
     ## 2. Create all kind of basic data
     ###########################################################################
     
-    # # Create the continue and discontinue beta
-    # Muti_Exec_ConDisconBeta(idxcd=300, min_=5,mult=False)
-    # Mrg_ConDisconBeta(index=300, min_=5)
+    # Create the continue and discontinue beta
+    Muti_Exec_ConDisconBeta(idxcd=300, min_=5,mult=False)
+    Mrg_ConDisconBeta(index=300, min_=5)
     
-    # # Create the semi-betas
-    # Muti_Exec_SemiBeta(mult=False)
-    # Mult_Mrg_SemiBeta([300, 4000], [5], mult=False)   
+    # Create the semi-betas
+    Muti_Exec_SemiBeta(mult=False)
+    Mult_Mrg_SemiBeta([300, 4000], [5], mult=False)   
     
-    # # Create the RSJ
-    # Muti_Exec_RSJ_RV(mult=False)
-    # Mrg_RSJ_RV(5)
+    # Create the RSJ
+    Muti_Exec_RSJ_RV(mult=False)
+    Mrg_RSJ_RV(5)
     
-    # # Create IVOL that based on CH3 factor model
-    # Mult_Cpt_IVOL(mult=False)
-    # Mrg_IVOL()
-    
-    
-    
+    # Create IVOL that based on CH3 factor model
+    Mult_Cpt_IVOL(mult=False)
+    Mrg_IVOL()
 
-    # # 1. Calculate intraday semi-beta variation and its dispersion
-    # Cpt_All_Stock_DS([300,4000], [15,20,25,30,35,40], n=48, min_=5)
+    # Calculate intraday semi-beta variation and its dispersion
+    Cpt_All_Stock_DS([300,4000], [15,20,25,30], n=48, min_=5, mult=False)
     
-    # # 2. Merge different stock's mean of intraday semi-beta varitions as well as its three different
-    # Mult_Mrg_Intraday_Beta_res()
-    # Mult_Mrg_Beta_measure(['AutoCorr'], [300,4000],[5],[15,20,25,30,35,40])
+    # Merge different stock's mean of intraday semi-beta varitions as well as its three different
+    Mult_Mrg_Intraday_Beta_res(mult=False)
+    Mult_Mrg_Beta_measure(['Square','BQ100','AutoCorr'], [300,4000],[5],[15,20,25,30],mult=False)
 
-    # # 3. Mult generate single sort results
-    # Muti_exec_Ssort(['ew'],[300,4000], ['15','20','25','30'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], min_=5, mult=True)
 
-    # # 4. Mult generate double sort results    
-    # control_list = ['BM','ME','MOM','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
-    # for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
-    #     for weight_type in ['ew']:
-    #         Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
-    #         Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 4000, key_tag, weight_type, reverse=False)
+    ##########################################################################
+    # 3. Create empirical results of sotring, regression and streatgy
+    ##########################################################################
 
+    # Mult generate single sort results
+    Muti_exec_Ssort(['vw','ew'],[300,4000], ['15','20','25','30'], ['Square','Beta_abs_intra','BQ100','AutoCorr'], min_=5, mult=False,groupsNum=3)
     
-    # # 5. Mult generate fama-macbeth regression results    
-    # Muti_exec_FMR(5, ['W'], [15,20,25,30,35,40], index_lst=[300,4000], mult=True)    
+    # Mult generate double sort results    
+    Muti_Exec_TD_Dsort(['ew','vw'],['Square','Beta_abs_intra','BQ100','AutoCorr'],
+                        [300,4000],['BM','ME','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta'],
+                        [15,20,25,30], min_=5, freq='W', mult=False, reverse=False, groupsNum1=3, groupsNum2=3)
     
-    # # 6. Mult generate beting beta strategy results
-    # Muti_Bet_on_BetaDispersion(5, ['W'], 300, [15,20,25,30,35,40])    
-    # Muti_Bet_on_BetaDispersion(5, ['W'], 4000, [15,20,25,30,35,40])    
+    # Merge double sorts results
+    control_list = ['BM','ME','REV','IVOL','ILLIQ','MAX','MIN','CSK','CKT','RSJ','beta','Beta_neg','disconBeta']
+    for key_tag in ['Square','Beta_abs_intra','BQ100','AutoCorr']:
+        for weight_type in ['ew','vw']:            
+            Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 300, key_tag, weight_type, reverse=False)
+            Mrg_Dsort_res_('W', 5, control_list,[15,20,25,30], 4000, key_tag, weight_type, reverse=False)
 
+
+    # # Mult generate fama-macbeth regression results    
+    # Muti_exec_FMR(5, ['W'], [15,20,25,30], index_lst=[300,4000], mult=False)    
+    
+    # Mult generate beting beta strategy results
+    Muti_Bet_on_BetaDispersion(5, ['W'], 300, [15,20,25,30],mult=False, groupsNum=3)    
 
 

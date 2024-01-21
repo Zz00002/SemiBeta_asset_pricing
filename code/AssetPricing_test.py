@@ -325,18 +325,19 @@ class AssetPricingTool:
         df = df.sort_index()
 
         # 将需要分组指标进行分组
-        df['Group'] = ''
+        df['Group'] = np.nan
         for temp in df.groupby(df.index):
             df_temp = temp[1]
-            # 获取分组
-            group_temp = self.Creat_StockGroups(
-                df_temp, sortTag, groupsNum, labels)
-            index_temp = temp[0]
-            # 写入分组信息
-            df.loc[index_temp, 'Group'] = group_temp
+            if df_temp.shape[0]>=groupsNum:
+                # 获取分组
+                group_temp = self.Creat_StockGroups(
+                    df_temp, sortTag, groupsNum, labels)
+                index_temp = temp[0]
+                # 写入分组信息
+                df.loc[index_temp, 'Group'] = group_temp
 
         df.reset_index(drop=True, inplace=True)
-        return df
+        return df.dropna()
 
 
     ###########################################################################
@@ -452,7 +453,7 @@ class AssetPricingTool:
 
         # 做多值低的组，做空值高的组，构建因子值
         Ssort['HML'] = -Ssort['{}_G01'.format(
-            sortTag)] + Ssort['{}_G05'.format(sortTag)]
+            sortTag)] + Ssort['{}_G0{}'.format(sortTag,groupsNum)]
         Ssort = Ssort.shift(1).dropna()
         SSortRes = pd.DataFrame(Ssort.mean(), columns=['AvgRet'])
 
