@@ -1,11 +1,11 @@
 # SemiBeta_asset_pricing
 
-## 基础数据构成
+## Basic Data Composition
 
-在stock文件夹中，我存储了9只股票2005年的1分钟高频数据，在index文件夹中，我储存了沪深300指数的1分钟高频数据以及我自己根据文章中所提到的构建方法所创造的全A综指5分钟高频数据（将上证指数和深证成指市值加权构建而成），用以作为代码运行范例的基础数据，高频数据全部来自RESSET。此外，我还使用来自CSMAR的日/月频数据构建了三个基础的数据csv，由于这部分数据量过大，且代码耦合度较高，因此展示不放在此进行展示，有需要可以联系联系我的邮箱: HaojianZhang002@gmail.com，与之相对的，我会在此说明这三个csv都是如何构建得到的：
+In the stock folder, I have stored 1-minute high-frequency data of 9 stocks from the year 2005. In the index folder, I have stored 1-minute high-frequency data of the CSI 300 index and the 5-minute high-frequency data of the all-A comprehensive index (constructed by market value weighting of the Shanghai and Shenzhen Composite Indices), which I created based on the construction methods mentioned in the articles. These serve as the basic data for the example runs of the code, and all high-frequency data come from RESSET. In addition, I used daily/monthly frequency data from CSMAR to construct three basic data CSVs. Due to the large volume of this data and the high degree of code coupling, this part is not displayed here. If needed, you can contact me at my email: HaojianZhang002@gmail.com. Conversely, I will explain here how these three CSVs were constructed:
 
 * CH3_daily.csv
-  * 直接从https://finance.wharton.upenn.edu/~stambaug/网站获得
+  * Directly obtained from the website https://finance.wharton.upenn.edu/~stambaug/
 
 * BM.csv
 
@@ -14,7 +14,7 @@
   
   ```
 
-  * BM即是账面市值比，参照ff3因子模型的构建方式，使用股票的净资产除以股票的总市值。
+  * BM refers to the book-to-market ratio, following the construction method of the FF3 factor model, using the net assets of a stock divided by the total market value of the stock.
 
 * SAVIC_saveMV.csv
 
@@ -51,7 +51,11 @@
   
   ```
 
-  * 参照Size and Value in China的方法对日频数据进行清洗，不执行其删去市值小于截面30%的操作。
+  * Following the method of Size and Value in China for daily frequency data cleaning, without performing the operation of deleting stocks with market values less than 30% of the cross-section.
+
+## Code Execution Results
+
+Executing main.py will automatically create corresponding folders, estimate key and control variables, and automatically run empirical results (except for Fama-Macbeth regression results, which cannot be successfully run due to too few sample stocks, but the corresponding code is included in the files). Note that third-party libraries must match.
 
 
 

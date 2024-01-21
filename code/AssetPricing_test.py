@@ -68,31 +68,11 @@ class AssetPricingTool:
                        df=None,
                        intercept=True,
                        NWtest=False):
-        '''
-        给定一个数据集，指定自变量和因变量的数据标签后，计算OLS回归的残差
 
-        Parameters
-        ----------
-        data_set : dataframe
-            包含因变量和自变量数据的数据集.
-        x_tag : list
-            自变量在data_set中所对应的列标签，列表内为字符串格式的标签名称.
-        y_tag : str
-            因变量在data_set中对应的列标签.  
-        intercept : bool
-            设定回归是否包含常数项，默认为True，即包含常数项
-
-        Returns
-        -------
-        res : ndarray
-            OLS回归残差序列.
-        '''
-        # 判断是否传入了df参数，如果没有，则使用类自带的数据集
         if df is None:
             df = self.data_set
 
         X = pd.DataFrame(columns=x_tag)
-        # 矩阵法求解残差
         X[x_tag] = df[x_tag]
         if intercept == True:
             X['intercept'] = 1
@@ -104,8 +84,7 @@ class AssetPricingTool:
             res = Y - X.dot(beta)
 
         except:
-            # 如果出现矩阵不可逆的情况，则给主对角线上的元素均加上一个很小的数
-            # 从而使矩阵可逆
+
             mat = X.T.dot(X)
             zeros = np.zeros((mat.shape))
 
@@ -135,115 +114,6 @@ class AssetPricingTool:
             return {'res': res, 'beta': beta}
 
 
-    def FamaMacBeth_self(self,
-                         DF,
-                         reg_lst,
-                         reg_order,
-                         reg_names=None,
-                         params_format='{:.3f}',
-                         tvalues_format='{:.2f}'):
-        '''
-        A function for Fama-MacBeth regression and results summary.
-
-        Parameters
-        ----------
-        DF: DataFrame
-            A panel date of which multi-index is stock and month (datetime64[ns]),
-            containing all the dependent and independent variables.
-        reg_lst: list
-            A list containing multiple lists of dependent variable and independent
-            variables, e.g., [['Y', 'X1', ...],..., ['Y', 'X1', ...,]].
-        reg_order: list
-            The order of independent variables in result table.
-        reg_names: list
-            The names for each regression.
-        params_format: str
-            The number of decimal places for parameters, e.g., '{:.3f}'.
-        tvalues_format: str
-            The number of decimal places for t-values, e.g., '{:.2f}'.
-        '''
-
-        def getOLS(group, x_var, y_var):
-
-            X = group[x_var]
-            y = group[y_var]
-
-            X = X.assign(const=1)
-            res = sm.OLS(y, X).fit()
-
-            return res.params
-            # return res
-
-        # Create a DataFrame
-        rows = sum([[var, f'{var}_t'] for var in ['const'] + reg_order], [])
-        if reg_names is None:
-            reg_names = [f'({i+1})' for i in range(len(reg_lst))]
-        show = pd.DataFrame(index=rows, columns=reg_names)
-
-        res_list = []
-        for reg, reg_name in zip(reg_lst, reg_names):
-
-            df = DF.loc[:, reg].copy().dropna()
-
-            T = len(df.index.get_level_values(df.index.names[1]).unique())
-            lag = math.floor(4*(T/100)**(2/9))
-
-            res = df.groupby(['Trddt']).apply(getOLS, reg[1:], reg[0])
-            res_list.append(res)
-            print(res)
-
-            df.groupby('Trddt').count()
-
-            # params, tvalues(tstats) and pvalues
-            params = fmb.params
-            tvalues = fmb.tstats
-            pvalues = fmb.pvalues
-
-            # Obs.
-            total_obs = df.shape[0]
-            # mean_obs = fmb.time_info['mean']
-
-            # average rsquared_adj
-            dft = df.reset_index(level=df.index.names[0], drop=True).copy()
-            rsquared_adj = []
-            for month in dft.index.unique():
-                dftm = dft.loc[month].copy()
-                ols = sm.OLS(dftm[reg[0]], sm.add_constant(
-                    dftm[reg[1:]])).fit()
-                rsquared_adj.append(ols.rsquared_adj)
-            ar2a = np.mean(rsquared_adj)
-
-            # params and significance
-            ps_lst = []
-            for param, pvalue in zip(params, pvalues):
-                param = params_format.format(param)
-                if (pvalue <= 0.1) & (pvalue > 0.05):
-                    param = param + '*'
-                elif (pvalue <= 0.05) & (pvalue > 0.01):
-                    param = param + '**'
-                elif pvalue <= 0.01:
-                    param = param + '***'
-                ps_lst.append(param)
-
-            # params and tvalues
-            tvalues = [tvalues_format.format(t) for t in tvalues]
-            t_lst = [f'{t}' for t in tvalues]
-            pt_lst = [[i, j] for i, j in zip(ps_lst, t_lst)]
-
-            # put them in place
-            for var, pt in zip(['const'] + reg[1:], pt_lst):
-                show.loc[var, reg_name] = pt[0]
-                show.loc[f'{var}_t', reg_name] = pt[1]
-            show.loc['No. Obs.', reg_name] = str(total_obs)
-            show.loc['Adj. R2', reg_name] = '{:.2f}%'.format(ar2a * 100)
-
-        rename_index = sum([[var, '']
-                           for var in ['Intercept'] + reg_order], [])
-        show.index = rename_index + ['No. Obs.', 'Adj. R2']
-
-        return show.dropna(axis=0, how='all').fillna('')
-
-
     ###########################################################################
     ## Related to stock sorting
     ###########################################################################
@@ -271,9 +141,7 @@ class AssetPricingTool:
                             timeTag,
                             weightTag=None):
 
-        # 如果没有要用于计算权重的列，则默认为等权重
         if weightTag == None:
-            # 将df按时间和组别分组后，对每组需要进行展示的变量进行截面维度上的聚合取mean
             ew = df.groupby([timeTag, 'Group'], as_index=False)[avgTag].mean()
             ew = ew.set_index(timeTag)
             return ew
@@ -294,7 +162,6 @@ class AssetPricingTool:
                           labels=None):
 
         df = data.copy()
-        # 生成记录分组的标签
         if labels is None:
             if type(groupsNum) is int:
                 labels = ['{}_G0'.format(sortTag) + str(i)
@@ -303,7 +170,6 @@ class AssetPricingTool:
                 labels = ['{}_G0'.format(sortTag) + str(i)
                           for i in range(1, len(groupsNum))]
         try:
-            # 使用qcut将股票按照分位数划分为给定数量的分组
             groups = pd.DataFrame(pd.qcut(df[sortTag], groupsNum, labels=labels).astype(str)) \
                 .rename(columns={sortTag: 'Group'})
         except:
@@ -320,20 +186,16 @@ class AssetPricingTool:
                           groupsNum,
                           labels=None):
 
-        # 按照需要进行分组的标签设置多重索引
         df.index = pd.MultiIndex.from_frame(df[groupby_list])
         df = df.sort_index()
 
-        # 将需要分组指标进行分组
         df['Group'] = np.nan
         for temp in df.groupby(df.index):
             df_temp = temp[1]
             if df_temp.shape[0]>=groupsNum:
-                # 获取分组
                 group_temp = self.Creat_StockGroups(
                     df_temp, sortTag, groupsNum, labels)
                 index_temp = temp[0]
-                # 写入分组信息
                 df.loc[index_temp, 'Group'] = group_temp
 
         df.reset_index(drop=True, inplace=True)
@@ -376,12 +238,10 @@ class AssetPricingTool:
 
         if df is None:
             df = self.data_set.copy()
-        # 单分组计算
         df = self.Exec_GroupStockDf(
             df, [timeTag], sortTag1, groupsNum1, labels1)
         df.rename(columns={'Group': 'G1'}, inplace=True)
 
-        # 在上一次单分组的结果上计算第二次分组
         if SortMethod == 'Independent':
             df = self.Exec_GroupStockDf(
                 df, [timeTag], sortTag2, groupsNum2, labels2)
@@ -390,9 +250,7 @@ class AssetPricingTool:
                 df, [timeTag, 'G1'], sortTag2, groupsNum2, labels2)
         df.rename(columns={'Group': 'G2'}, inplace=True)
 
-        # 将两个变量的分组用@来联系起来，便于聚合后再将分组还原
         df['Group'] = df.G1 + '@' + df.G2
-        # 计算每个Group的截面均值
         result = self.Cpt_CrossWeightMean(df, avgTag, timeTag, weightTag)
         result[avgTag] = result[avgTag]
         result['Group_' +
@@ -417,7 +275,6 @@ class AssetPricingTool:
 
         df = df.groupby('Group', as_index=False).mean()
         if sortType.upper() == 'D':
-            # 将加总的分组信息列再分解为两列后，再转化为二维格式
             df['Group_' +
                 sortTag1] = df['Group'].apply(lambda x: x.split('@')[0])
             df['Group_' +
@@ -439,7 +296,6 @@ class AssetPricingTool:
                           df=None,
                           weightTag=None):
 
-        # 计算给定指标单变量排序结果
         Ssort = self.Exec_SingleSort(avgTag,
                                      sortTag,
                                      df=df,
@@ -451,13 +307,11 @@ class AssetPricingTool:
                    'Group',
                    avgTag)
 
-        # 做多值低的组，做空值高的组，构建因子值
         Ssort['HML'] = -Ssort['{}_G01'.format(
             sortTag)] + Ssort['{}_G0{}'.format(sortTag,groupsNum)]
         Ssort = Ssort.shift(1).dropna()
         SSortRes = pd.DataFrame(Ssort.mean(), columns=['AvgRet'])
 
-        # 循环计算每一个投资组合的回归结果
         portName = Ssort.columns
         sortTable = pd.merge(Ssort, Factors,
                              left_index=True, right_index=True)
@@ -506,7 +360,6 @@ class AssetPricingTool:
         double_sort['retShit'] = double_sort.groupby('Group').retShit.shift(1)
         double_sort = double_sort.dropna()
 
-        # 展示5*5分组的二维图表
         sort_table = self.Creat_SortTimePolymer(df=double_sort,
                                                 avgTag=avgTag,
                                                 sortTag1=sortTag,
@@ -517,7 +370,6 @@ class AssetPricingTool:
         sortRes.loc['HML', :] = ''
         for cont in contName:
             df = double_sort[double_sort['Group_{}'.format(sortTag)] == cont]
-            # 计算HML
             bigTag = sort_table.index[-1]
             smallTag = sort_table.index[0]
             bigGroup = df[df['Group_{}'.format(sortTag_key)] == bigTag]
@@ -529,7 +381,6 @@ class AssetPricingTool:
             sortRes.loc['t', cont] = self.Exec_NWTest(test_array=HML)['tstat']
             sortRes.loc['p', cont] = self.Exec_NWTest(test_array=HML)['pval']
 
-        # 计算每一个key变量分组的alpha和平均收益率
         for port in portName:
             df = double_sort[double_sort['Group_{}'.format(
                 sortTag_key)] == port]
@@ -544,7 +395,6 @@ class AssetPricingTool:
             sortRes.loc[port, 'AvgRet'] = port_df[avgTag].mean()
             sortRes.loc[port, 'Alpha'] = alpha
 
-        # 计算HML组平均收益率、以及该平均收益率的alpha和对应t值
         bigTag = sort_table.index[-1]
         bigGroup = double_sort[double_sort['Group_{}'.format(
             sortTag_key)] == bigTag]
